@@ -59,7 +59,7 @@ main{display:flex;height:calc(100% - 56px)}
 .info{padding:10px 12px;font-size:13px;color:var(--mut)}
 .info b{color:var(--txt)}
 /* tozalik */
-#toz{position:absolute;inset:56px 0 0 0;background:var(--bg);overflow:auto;padding:16px;z-index:500}
+#toz{position:absolute;inset:56px 0 0 0;background:var(--bg);overflow:auto;padding:16px;z-index:1500}
 .tz-top{display:flex;flex-wrap:wrap;gap:10px;align-items:center;margin-bottom:12px}
 .tz-top select{padding:8px 10px;border:1px solid var(--line);border-radius:8px;font:inherit}
 .prog{height:6px;background:var(--line);border-radius:3px;overflow:hidden;flex:1;min-width:120px}
@@ -206,8 +206,14 @@ document.getElementById("logoSm").innerHTML = logo(36);
 const $ = id => document.getElementById(id);
 const esc = s => String(s ?? "").replace(/[&<>"]/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
 const pad = n => String(n).padStart(2,"0");
-const fmtT = t => { const d=new Date(t*1000); return `${pad(d.getDate())}.${pad(d.getMonth()+1)} ${pad(d.getHours())}:${pad(d.getMinutes())}`; };
-const ago = t => { const s=Math.max(0,Date.now()/1000-t); if(s<60) return "hozir"; if(s<3600) return Math.floor(s/60)+" daq oldin"; if(s<86400) return Math.floor(s/3600)+" soat oldin"; return Math.floor(s/86400)+" kun oldin"; };
+// Vaqt har doim Toshkent (UTC+5) bo'yicha va Wialon server soati bo'yicha olinadi -
+// kompyuter soati noto'g'ri bo'lsa ham sayt to'g'ri ishlaydi.
+const TZ = 5*3600;
+const NOW = () => { try{ const t=wialon.core.Session.getInstance().getServerTime(); if(t) return t; }catch(e){} return Math.floor(Date.now()/1000); };
+const tk = t => new Date((t+TZ)*1000);   // getUTC* = Toshkent vaqti
+const fmtT = t => { const d=tk(t); return `${pad(d.getUTCDate())}.${pad(d.getUTCMonth()+1)} ${pad(d.getUTCHours())}:${pad(d.getUTCMinutes())}`; };
+const tkTs = (dateStr,timeStr,sec) => { const [y,m,d]=dateStr.split("-").map(Number); const [h,mi]=timeStr.split(":").map(Number); return Date.UTC(y,m-1,d,h,mi,sec||0)/1000 - TZ; };
+const ago = t => { const s=Math.max(0,NOW()-t); if(s<60) return "hozir"; if(s<3600) return Math.floor(s/60)+" daq oldin"; if(s<86400) return Math.floor(s/3600)+" soat oldin"; return Math.floor(s/86400)+" kun oldin"; };
 const store = { get(k){try{return localStorage.getItem(k)}catch(e){return null}}, set(k,v){try{localStorage.setItem(k,v)}catch(e){}}, del(k){try{localStorage.removeItem(k)}catch(e){}} };
 function api(svc, params){
   return new Promise((ok, no) => wialon.core.Remote.getInstance().remoteCall(svc, params, (code, data) => code ? no(new Error("Wialon xato kodi "+code)) : ok(data)));
@@ -215,7 +221,7 @@ function api(svc, params){
 function hav(a,b){const R=6371,toR=x=>x*Math.PI/180;const dLa=toR(b[0]-a[0]),dLo=toR(b[1]-a[1]);const h=Math.sin(dLa/2)**2+Math.cos(toR(a[0]))*Math.cos(toR(b[0]))*Math.sin(dLo/2)**2;return 2*R*Math.asin(Math.sqrt(h));}
 const KUN = {D:0,DU:0,S:1,SE:1,CH:2,P:3,PA:3,PAY:3,J:4,JU:4,JUMA:4,SH:5,SHA:5,Y:6,YA:6,YAK:6};
 function kunlar(k){const r=new Set();(k||"").toUpperCase().replace(/[. ]/g,"").split(",").forEach(q=>{if(!q)return;if(q.includes("-")){const[a,b]=q.split("-");if(a in KUN&&b in KUN)for(let i=KUN[a];i<=KUN[b];i++)r.add(i)}else if(q in KUN)r.add(KUN[q])});return r;}
-function holat(u){ const p=u.pos; if(!p) return "off"; const age=Date.now()/1000-p.t; if(age>3600) return "off"; return p.s>3?"move":"stop"; }
+function holat(u){ const p=u.pos; if(!p) return "off"; const age=NOW()-p.t; if(age>3600) return "off"; return p.s>3?"move":"stop"; }
 const HOLAT_NOMI = {move:"Harakatda",stop:"To'xtagan",off:"Signal yo'q"};
 const RANG = {move:"#1b8a4b",stop:"#2f7fd8",off:"#a4adb7"};
 const turi = n => (n.match(/\(([^)]+)\)/)||[])[1] || "";
@@ -231,7 +237,7 @@ async function login(token){
     s.initSession(WIALON);
     await new Promise((ok,no)=>s.loginToken(token,"",c=>c?no(new Error(c==8||c==4?"Token noto'g'ri yoki muddati tugagan":"Kirish xatosi: "+c)):ok()));
     store.set("bte_token", token);
-    $("uname").textContent = s.getCurrUser().getName();
+    $("uname").textContent = "ZAFARBEK";
     $("login").classList.add("hidden"); $("app").classList.remove("hidden");
     initMap(); await loadUnits(); loadGroups(); initTrk(); initWeeks();
     timer = setInterval(loadUnits, 30000);
@@ -258,7 +264,9 @@ async function loadUnits(){
   try{
     const r = await api("core/search_items",{spec:{itemsType:"avl_unit",propName:"sys_name",propValueMask:"*",sortType:"sys_name"},force:1,flags:1|1024|4194304,from:0,to:0});
     units = (r.items||[]).map(u=>({id:u.id,nm:u.nm,pos:u.pos,h:holat(u)})).sort((a,b)=>a.nm.localeCompare(b.nm,undefined,{numeric:true}));
-    drawUnits(); $("upd").textContent = "Yangilandi: "+fmtT(Date.now()/1000)+" · har 30 soniyada";
+    const first = !unitLayer.getLayers().length;
+    drawUnits(); $("upd").textContent = "Yangilandi: "+fmtT(NOW())+" · har 30 soniyada";
+    if(first){ const ll=units.filter(u=>u.pos).map(u=>[u.pos.y,u.pos.x]); if(ll.length) map.fitBounds(L.latLngBounds(ll),{padding:[40,40]}); }
   }catch(e){ $("upd").textContent = "Yangilashda xato: "+e.message; }
 }
 let selUnit = null;
@@ -287,13 +295,13 @@ $("ulist").onclick = e => { const r=e.target.closest(".row"); if(!r) return; sel
 /* ================= Treklar ================= */
 function initTrk(){
   $("tu").innerHTML = units.map(u=>`<option value="${u.id}">${esc(u.nm)}</option>`).join("");
-  const d=new Date(); $("td").value = `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}`;
+  const d=tk(NOW()); $("td").value = `${d.getUTCFullYear()}-${pad(d.getUTCMonth()+1)}-${pad(d.getUTCDate())}`;
 }
 window.openTrack = id => { setTab("trk"); $("tu").value=id; showTrack(); };
 async function showTrack(){
   const id=+$("tu").value, d=$("td").value; if(!id||!d) return;
-  const from = Math.floor(new Date(d+"T"+$("tf").value+":00").getTime()/1000);
-  const to = Math.floor(new Date(d+"T"+$("tt").value+":59").getTime()/1000);
+  const from = tkTs(d,$("tf").value,0);
+  const to = tkTs(d,$("tt").value,59);
   $("tinfo").textContent="Yuklanmoqda..."; trackLayer.clearLayers();
   try{
     const r = await api("messages/load_interval",{itemId:id,timeFrom:from,timeTo:to,flags:1,flagsMask:65281,loadCount:50000});
@@ -407,25 +415,27 @@ async function showGroup(gid){
 }
 
 /* ================= MFY tozalik ================= */
-function monday(d){ const x=new Date(d); x.setHours(0,0,0,0); x.setDate(x.getDate()-((x.getDay()+6)%7)); return x; }
 function initWeeks(){
-  const m=monday(new Date()); let h="";
-  for(let i=0;i<8;i++){ const a=new Date(m); a.setDate(a.getDate()-7*i); const b=new Date(a); b.setDate(b.getDate()+6);
-    h+=`<option value="${a.getTime()}">${pad(a.getDate())}.${pad(a.getMonth()+1)} – ${pad(b.getDate())}.${pad(b.getMonth()+1)}${i===0?" (joriy hafta)":""}</option>`; }
+  // Toshkent bo'yicha joriy haftaning dushanbasi 00:00 (unix soniya)
+  const n=tk(NOW()); const day0=Date.UTC(n.getUTCFullYear(),n.getUTCMonth(),n.getUTCDate())/1000 - TZ;
+  const mon=day0-((n.getUTCDay()+6)%7)*86400; let h="";
+  for(let i=0;i<8;i++){ const a=mon-7*i*86400, b=a+6*86400; const A=tk(a), B=tk(b);
+    h+=`<option value="${a}">${pad(A.getUTCDate())}.${pad(A.getUTCMonth()+1)} – ${pad(B.getUTCDate())}.${pad(B.getUTCMonth()+1)}${i===0?" (joriy hafta)":""}</option>`; }
   $("wk").innerHTML=h;
 }
 async function visited(gid,from,to){
   const tpl={id:0,n:"mfy",ct:"avl_unit_group",p:"",tbl:[{n:"unit_group_zones_visit",l:"v",c:"zone_name,time_begin,visits_count",cl:"Z,T,V",s:"",sl:"",
     p:JSON.stringify({grouping:'{"type":"geozone"}',geozones:`gr${RES_ID}_${gid},`}),sch:{f1:0,f2:0,t1:0,t2:0,m:0,y:0,w:0,fl:0},f:0}]};
   const r = await api("report/exec_report",{reportResourceId:RES_ID,reportTemplateId:0,reportTemplate:tpl,reportObjectId:GROUP_ID,reportObjectSecId:0,interval:{from,to,flags:0}});
-  const n = r.tables && r.tables.length ? r.tables[0].rows : 0;
+  const res = r.reportResult || r;
+  const n = res.tables && res.tables.length ? res.tables[0].rows : 0;
   await api("report/cleanup_result",{});
   return n;
 }
 let ztRunning=false;
 async function calcToz(){
   if(ztRunning) return; ztRunning=true; $("zbtn").disabled=true;
-  const from=Math.floor(+$("wk").value/1000), to=Math.min(from+7*86400-1, Math.floor(Date.now()/1000));
+  const from=+$("wk").value, to=Math.min(from+7*86400-1, NOW());
   const rows=[]; REJA.forEach(([t,ms])=>ms.forEach(([n,k,g])=>rows.push({t,n,k,g})));
   let done=0; $("ztb").innerHTML=""; $("kpis").innerHTML="";
   for(const r of rows){
@@ -440,7 +450,7 @@ async function calcToz(){
     done++; $("zbar").style.width=(100*done/rows.length)+"%"; $("zst").textContent=`${done} / ${rows.length}`;
     renderToz(rows.slice(0,done));
   }
-  $("zst").textContent="Tayyor · "+fmtT(Date.now()/1000); ztRunning=false; $("zbtn").disabled=false;
+  $("zst").textContent="Tayyor · "+fmtT(NOW()); ztRunning=false; $("zbtn").disabled=false;
 }
 function renderToz(rows){
   const ok=rows.filter(r=>r.f!=null);
