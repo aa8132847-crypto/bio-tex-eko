@@ -1,0 +1,477 @@
+<!doctype html>
+<html lang="uz">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>BIO TEX EKO – Monitoring</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Ccircle cx='32' cy='32' r='30' fill='%231b8a4b'/%3E%3Cpath d='M18 40c0-14 10-22 28-24-2 18-10 28-24 28-2 0-3-1-4-4z' fill='%23fff'/%3E%3C/svg%3E">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
+<script src="https://2.wialon.uz/wsdk/script/wialon.js"></script>
+<style>
+:root{--g:#1b8a4b;--g2:#e8f5ee;--txt:#1d2733;--mut:#6b7785;--line:#e3e8ee;--bg:#f5f7f9;--red:#d64545;--yel:#e5a50a;--blue:#2f7fd8}
+*{box-sizing:border-box}
+html,body{margin:0;height:100%;font:14px/1.4 system-ui,-apple-system,Segoe UI,Roboto,sans-serif;color:var(--txt);background:var(--bg)}
+button{font:inherit;cursor:pointer}
+.hidden{display:none!important}
+/* login */
+#login{position:fixed;inset:0;display:flex;align-items:center;justify-content:center;background:linear-gradient(135deg,#e8f5ee,#fff)}
+.card{background:#fff;border:1px solid var(--line);border-radius:14px;padding:28px;width:min(400px,92vw);box-shadow:0 8px 30px rgba(0,0,0,.08);text-align:center}
+.card input{width:100%;padding:11px 12px;border:1px solid var(--line);border-radius:8px;margin:14px 0 10px;font:13px monospace}
+.btn{background:var(--g);color:#fff;border:0;border-radius:8px;padding:10px 16px;font-weight:600}
+.btn.sec{background:#fff;color:var(--g);border:1px solid var(--g)}
+.err{color:var(--red);min-height:20px;font-size:13px}
+/* header */
+header{height:56px;background:#2d3e50;display:flex;align-items:center;gap:14px;padding:0 14px;color:#fff}
+.brand{display:flex;align-items:center;gap:10px;font-weight:800;color:#fff;letter-spacing:.5px;white-space:nowrap}
+.brand small{display:block;font-weight:500;color:#b8c4cf;font-size:11px;letter-spacing:0}
+nav{display:flex;gap:2px;overflow-x:auto;flex:1;height:100%}
+nav button{background:none;border:0;padding:0 14px;color:#cfd8e0;font-weight:600;white-space:nowrap;display:flex;align-items:center;gap:6px;border-bottom:3px solid transparent}
+nav button:hover{background:#364a5e;color:#fff}
+nav button.on{color:#fff;border-bottom-color:#3ccf7a;background:#364a5e}
+nav svg{width:16px;height:16px;fill:currentColor}
+.user{color:#cfd8e0;font-size:13px;white-space:nowrap}
+.user button{background:none;border:1px solid #5b6d7f;color:#fff;margin-left:8px;border-radius:6px;padding:3px 8px}
+.bad{display:inline-block;font-size:11px;padding:1px 6px;border-radius:10px;margin:2px 2px 0 0}
+.b-red{background:#fadcdc;color:#9b2222}.b-yel{background:#fdf0c9;color:#7a5800}.b-ok{background:#d8f0e2;color:#13633a}
+.seg{display:flex;border:1px solid var(--line);border-radius:8px;overflow:hidden}
+.seg button{flex:1;background:#fff;border:0;padding:7px;color:var(--mut);font-weight:600}
+.seg button.on{background:var(--g2);color:var(--g)}
+/* layout */
+main{display:flex;height:calc(100% - 56px)}
+#side{width:340px;max-width:100%;background:#fff;border-right:1px solid var(--line);display:flex;flex-direction:column;min-height:0}
+#map{flex:1;min-width:0}
+.pane{display:flex;flex-direction:column;min-height:0;flex:1}
+.ptop{padding:12px;border-bottom:1px solid var(--line);display:flex;flex-direction:column;gap:8px}
+.ptop input,.ptop select{width:100%;padding:8px 10px;border:1px solid var(--line);border-radius:8px;font:inherit;background:#fff}
+.list{overflow:auto;flex:1}
+.row{display:flex;align-items:center;gap:10px;padding:9px 12px;border-bottom:1px solid #f0f2f5;cursor:pointer}
+.row:hover{background:#f7faf8}
+.row.sel{background:var(--g2)}
+.dot{width:11px;height:11px;border-radius:50%;flex:none}
+.d-move{background:var(--g)}.d-stop{background:var(--blue)}.d-off{background:#a4adb7}
+.row .nm{font-weight:600}
+.row .sub{color:var(--mut);font-size:12px}
+.row .rt{margin-left:auto;text-align:right;font-size:12px;color:var(--mut);white-space:nowrap}
+.stats{display:flex;gap:6px}
+.stat{flex:1;border:1px solid var(--line);border-radius:8px;padding:6px;text-align:center;font-size:12px;color:var(--mut)}
+.stat b{display:block;font-size:18px;color:var(--txt)}
+.info{padding:10px 12px;font-size:13px;color:var(--mut)}
+.info b{color:var(--txt)}
+/* tozalik */
+#toz{position:absolute;inset:56px 0 0 0;background:var(--bg);overflow:auto;padding:16px;z-index:500}
+.tz-top{display:flex;flex-wrap:wrap;gap:10px;align-items:center;margin-bottom:12px}
+.tz-top select{padding:8px 10px;border:1px solid var(--line);border-radius:8px;font:inherit}
+.prog{height:6px;background:var(--line);border-radius:3px;overflow:hidden;flex:1;min-width:120px}
+.prog i{display:block;height:100%;width:0;background:var(--g);transition:width .2s}
+.kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px;margin-bottom:12px}
+.kpi{background:#fff;border:1px solid var(--line);border-radius:10px;padding:12px}
+.kpi span{color:var(--mut);font-size:12px}.kpi b{display:block;font-size:24px}
+table{width:100%;border-collapse:collapse;background:#fff;border:1px solid var(--line);border-radius:10px;overflow:hidden}
+th,td{padding:8px 10px;border-bottom:1px solid #eef1f4;text-align:left;font-size:13px}
+th{background:#fafbfc;color:var(--mut);font-weight:600;position:sticky;top:0}
+td.p{font-weight:700;text-align:center;width:80px}
+.pg{background:#d8f0e2;color:#13633a}.py{background:#fdf0c9;color:#7a5800}.pr{background:#fadcdc;color:#9b2222}
+.tbtn{background:none;border:1px solid var(--line);border-radius:6px;padding:3px 8px;font-size:12px}
+.lbl{background:#fff;border:1px solid #9fb3a6;border-radius:4px;padding:0 4px;font-size:11px;font-weight:700;white-space:nowrap;box-shadow:0 1px 2px rgba(0,0,0,.2)}
+@media (max-width:760px){
+  header{height:auto;flex-wrap:wrap;padding:8px 12px}
+  nav{order:3;flex-basis:100%}
+  main{flex-direction:column;height:auto}
+  #side{width:100%;height:45vh;border-right:0;border-bottom:1px solid var(--line)}
+  #map{height:55vh;flex:none}
+  #toz{position:fixed;top:0;z-index:2000}
+}
+</style>
+</head>
+<body>
+
+<div id="login">
+  <div class="card">
+    <div id="logoBig"></div>
+    <h2 style="margin:10px 0 2px;color:var(--g)">BIO TEX EKO</h2>
+    <div style="color:var(--mut)">Oltinko'l tumani · GPS monitoring</div>
+    <input id="tok" type="password" placeholder="Wialon token" autocomplete="off">
+    <div class="err" id="lerr"></div>
+    <button class="btn" id="lbtn" style="width:100%">Kirish</button>
+    <div style="color:var(--mut);font-size:12px;margin-top:12px">Token faqat shu brauzerda saqlanadi.</div>
+  </div>
+</div>
+
+<div id="app" class="hidden" style="height:100%">
+<header>
+  <div class="brand"><span id="logoSm"></span><div>BIO TEX EKO<small>Oltinko'l tumani</small></div></div>
+  <nav>
+    <button data-t="mon" class="on"><svg viewBox="0 0 24 24"><path d="M12 2a7 7 0 0 0-7 7c0 5 7 13 7 13s7-8 7-13a7 7 0 0 0-7-7zm0 9.5A2.5 2.5 0 1 1 12 6a2.5 2.5 0 0 1 0 5.5z"/></svg>Monitoring</button>
+    <button data-t="trk"><svg viewBox="0 0 24 24"><path d="M4 18c3-8 6 0 9-6s5-4 7-8l1.5 1C19 9 17 9 14 14s-7-2-8.5 5z"/></svg>Treklar</button>
+    <button data-t="geo"><svg viewBox="0 0 24 24"><path d="M3 5l6-2 6 2 6-2v16l-6 2-6-2-6 2zm6 0v14m6-12v14" stroke="currentColor" stroke-width="1.5" fill="none"/></svg>Geozonalar</button>
+    <button data-t="toz"><svg viewBox="0 0 24 24"><path d="M4 20V10h3v10zm6 0V4h3v16zm6 0v-7h3v7z"/></svg>MFY tozalik</button>
+  </nav>
+  <div class="user"><span id="uname"></span><button id="logout" title="Chiqish">Chiqish</button></div>
+</header>
+<main>
+  <aside id="side">
+    <!-- Monitoring -->
+    <div class="pane" id="p-mon">
+      <div class="ptop">
+        <div class="stats">
+          <div class="stat"><b id="c-move">0</b>Harakatda</div>
+          <div class="stat"><b id="c-stop">0</b>To'xtagan</div>
+          <div class="stat"><b id="c-off">0</b>Signal yo'q</div>
+        </div>
+        <input id="q" placeholder="Qidirish: raqam yoki turi">
+      </div>
+      <div class="list" id="ulist"></div>
+      <div class="info" id="upd"></div>
+    </div>
+    <!-- Treklar -->
+    <div class="pane hidden" id="p-trk">
+      <div class="ptop">
+        <select id="tu"></select>
+        <input id="td" type="date">
+        <div style="display:flex;gap:6px"><input id="tf" type="time" value="00:00"><input id="tt" type="time" value="23:59"></div>
+        <button class="btn" id="tbtn">Trekni ko'rsatish</button>
+        <button class="btn sec" id="tclr">Tozalash</button>
+      </div>
+      <div class="info" id="tinfo">Mashina va sanani tanlang.</div>
+    </div>
+    <!-- Geozonalar -->
+    <div class="pane hidden" id="p-geo">
+      <div class="ptop">
+        <input id="gq" placeholder="MFY qidirish">
+        <div class="seg"><button data-gf="all" class="on">Hammasi</button><button data-gf="bad">Muammoli</button><button data-gf="other">Boshqa</button></div>
+        <div id="gsum" style="font-size:12px;color:var(--mut)">Geozonalar tekshirilmoqda...</div>
+      </div>
+      <div class="list" id="glist"></div>
+      <div class="info" id="ginfo"></div>
+    </div>
+  </aside>
+  <div id="map"></div>
+</main>
+<!-- MFY tozalik -->
+<section id="toz" class="hidden">
+  <div class="tz-top">
+    <b style="font-size:16px">MFY tozalik foizi</b>
+    <select id="wk"></select>
+    <button class="btn" id="zbtn">Hisoblash</button>
+    <div class="prog"><i id="zbar"></i></div>
+    <span id="zst" style="color:var(--mut);font-size:13px"></span>
+    <button class="btn sec" id="zback" style="margin-left:auto">Xaritaga qaytish</button>
+  </div>
+  <div class="kpis" id="kpis"></div>
+  <div style="color:var(--mut);font-size:12px;margin-bottom:8px">Foiz = hafta davomida istalgan mashina kirgan nuqtalar ÷ MFYdagi jami nuqtalar. Yashil ≥ 90%, sariq 60–89%, qizil &lt; 60%.</div>
+  <table><thead><tr><th>Texnika</th><th>MFY</th><th>Kunlari</th><th>Nuqtalar</th><th>Foiz</th><th></th></tr></thead><tbody id="ztb"></tbody></table>
+</section>
+</div>
+
+<script>
+/* ================= Sozlamalar ================= */
+const WIALON = "https://2.wialon.uz";
+const RES_ID = 97232;      // "Алтынкуль тумани" resursi
+const GROUP_ID = 65105;    // "BIO TEX EKO Олтинкул туман" mashinalar guruhi
+// Texnika -> MFY (Wialon geozona guruhi ID) va kunlar
+const REJA = [
+ ["419 ULA",[["O`rta Ariq","D",14],["Safarabod","S,CH",54],["Uzun ko`cha","CH,P",3],["Ko`tarma chek","J",26],["Ganjiravon","SH",49]]],
+ ["420 ULA",[["O`rta","D,S,CH",56],["Toptiq","D,S,CH",55],["Sharq-Yulduzi","CH,P,J",45],["Qo`shkoprik","SH",12]]],
+ ["463 TLA",[["Saroy-1","D,S",38],["Oq tepa","S,CH",35],["Bo`ston","P",20],["Katta oq tepa","J",24],["Mamayusufchek","SH",5]]],
+ ["483 TLA",[["Ors","D,S",2],["Oftabachek","CH",34],["Madyarchek","P,J",4],["Xondibog`i","J,SH",7]]],
+ ["422 JBA",[["Chaqqon-1","D,S",52],["Xo`ja","S,CH",51],["Maqsad","P,J",30],["Chaqqon-2","J,SH",60]]],
+ ["283 TAA",[["Ko`makay","D,S",25],["Ayshaxonim","CH",19],["Sadda","P,J",36]]],
+ ["287 OAA",[["Dalvarzin","D,S",1],["Yangi Chek","CH,P-SH,Y",47]]],
+ ["295 JBA",[["Uyg`ur","D,S,CH",41],["Mustaqillik","CH,P",61],["Jalabek","J,SH",21]]],
+ ["486 OAA",[["Ijtimoyat","D,S",22],["Guliston chek","CH",43],["Qayirma","J,SH",9],["Temirxo`ja","J,SH",39]]],
+ ["318 OAA",[["Uyshin","D,S",40],["Suvyulduz","CH,P",15],["Mexnat","P,J,SH",31]]],
+ ["432 JBA",[["saroy-2","D,S",17],["Madaniy Mexnat-2","S,CH",28],["Madaniy Mexnat-1","P",27],["Xasan-Xusan","J,SH",42]]],
+ ["614 XAA",[["Qipchoq","D",10],["Oq tumor","S",6],["Andijon","CH,P",57],["Qo`shtepa Saroy","J",37],["Shayx Islom","SH",8]]],
+ ["396 JBA",[["Mirobod","D,SH",16],["Maslaxat Ittifoq","CH",50],["Gulbog` Ittifoq","P,J",13],["Ayronchi","J,SH",18]]],
+ ["485 OAA",[["Cho`ntak","D,S,CH",44],["Intizom","P",62],["Qashqar","J",53],["Kottej 2016","Y",69]]],
+ ["824 OBA",[["Markaz","DU-SHA",29],["O`zbekiston ko`cha","DU-SHA",null]]],
+ ["156 VAA",[["Qo`shtepa","",48],["Erkin","",46]]],
+ ["162 VAA",[["Qoraqalpoq","",11],["Namuna","",33],["Ittifoq","",23]]]
+];
+
+/* ================= Logo ================= */
+function logo(size){
+  return `<svg width="${size}" height="${size}" viewBox="0 0 64 64" aria-label="BIO TEX EKO">
+  <circle cx="32" cy="32" r="30" fill="#1b8a4b"/>
+  <circle cx="32" cy="32" r="25" fill="none" stroke="#fff" stroke-opacity=".35" stroke-width="2"/>
+  <path d="M17 41c0-15 11-24 30-25-2 19-11 29-26 29-2 0-3-1-4-4z" fill="#fff"/>
+  <path d="M20 44c6-9 13-15 22-21" stroke="#1b8a4b" stroke-width="2.5" fill="none" stroke-linecap="round"/>
+  </svg>`;
+}
+document.getElementById("logoBig").innerHTML = logo(72);
+document.getElementById("logoSm").innerHTML = logo(36);
+
+/* ================= Yordamchilar ================= */
+const $ = id => document.getElementById(id);
+const esc = s => String(s ?? "").replace(/[&<>"]/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
+const pad = n => String(n).padStart(2,"0");
+const fmtT = t => { const d=new Date(t*1000); return `${pad(d.getDate())}.${pad(d.getMonth()+1)} ${pad(d.getHours())}:${pad(d.getMinutes())}`; };
+const ago = t => { const s=Math.max(0,Date.now()/1000-t); if(s<60) return "hozir"; if(s<3600) return Math.floor(s/60)+" daq oldin"; if(s<86400) return Math.floor(s/3600)+" soat oldin"; return Math.floor(s/86400)+" kun oldin"; };
+const store = { get(k){try{return localStorage.getItem(k)}catch(e){return null}}, set(k,v){try{localStorage.setItem(k,v)}catch(e){}}, del(k){try{localStorage.removeItem(k)}catch(e){}} };
+function api(svc, params){
+  return new Promise((ok, no) => wialon.core.Remote.getInstance().remoteCall(svc, params, (code, data) => code ? no(new Error("Wialon xato kodi "+code)) : ok(data)));
+}
+function hav(a,b){const R=6371,toR=x=>x*Math.PI/180;const dLa=toR(b[0]-a[0]),dLo=toR(b[1]-a[1]);const h=Math.sin(dLa/2)**2+Math.cos(toR(a[0]))*Math.cos(toR(b[0]))*Math.sin(dLo/2)**2;return 2*R*Math.asin(Math.sqrt(h));}
+const KUN = {D:0,DU:0,S:1,SE:1,CH:2,P:3,PA:3,PAY:3,J:4,JU:4,JUMA:4,SH:5,SHA:5,Y:6,YA:6,YAK:6};
+function kunlar(k){const r=new Set();(k||"").toUpperCase().replace(/[. ]/g,"").split(",").forEach(q=>{if(!q)return;if(q.includes("-")){const[a,b]=q.split("-");if(a in KUN&&b in KUN)for(let i=KUN[a];i<=KUN[b];i++)r.add(i)}else if(q in KUN)r.add(KUN[q])});return r;}
+function holat(u){ const p=u.pos; if(!p) return "off"; const age=Date.now()/1000-p.t; if(age>3600) return "off"; return p.s>3?"move":"stop"; }
+const HOLAT_NOMI = {move:"Harakatda",stop:"To'xtagan",off:"Signal yo'q"};
+const RANG = {move:"#1b8a4b",stop:"#2f7fd8",off:"#a4adb7"};
+const turi = n => (n.match(/\(([^)]+)\)/)||[])[1] || "";
+const raqam = n => n.split(" (")[0];
+
+/* ================= Login ================= */
+let units = [], zoneGroups = {}, mapReady = false, timer = null;
+async function login(token){
+  $("lerr").textContent=""; $("lbtn").disabled=true; $("lbtn").textContent="Kirilmoqda...";
+  try{
+    if(typeof wialon==="undefined") throw new Error("Wialon serveriga ulanib bo'lmadi");
+    const s = wialon.core.Session.getInstance();
+    s.initSession(WIALON);
+    await new Promise((ok,no)=>s.loginToken(token,"",c=>c?no(new Error(c==8||c==4?"Token noto'g'ri yoki muddati tugagan":"Kirish xatosi: "+c)):ok()));
+    store.set("bte_token", token);
+    $("uname").textContent = s.getCurrUser().getName();
+    $("login").classList.add("hidden"); $("app").classList.remove("hidden");
+    initMap(); await loadUnits(); loadGroups(); initTrk(); initWeeks();
+    timer = setInterval(loadUnits, 30000);
+  }catch(e){ $("lerr").textContent=e.message; store.del("bte_token"); }
+  $("lbtn").disabled=false; $("lbtn").textContent="Kirish";
+}
+$("lbtn").onclick = () => { const t=$("tok").value.trim(); if(t) login(t); };
+$("tok").onkeydown = e => { if(e.key==="Enter") $("lbtn").click(); };
+$("logout").onclick = () => { store.del("bte_token"); try{wialon.core.Session.getInstance().logout(()=>{})}catch(e){} location.reload(); };
+
+/* ================= Xarita ================= */
+let map, unitLayer, trackLayer, zoneLayer, markers = {};
+function initMap(){
+  if(mapReady) return; mapReady = true;
+  map = L.map("map",{zoomControl:true}).setView([40.79,72.29],13);
+  const osm = L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png",{maxZoom:19,attribution:"© OpenStreetMap"});
+  const sat = L.tileLayer("https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}",{maxZoom:19,attribution:"© Esri"});
+  osm.addTo(map); L.control.layers({"Xarita":osm,"Sun'iy yo'ldosh":sat}).addTo(map);
+  unitLayer = L.layerGroup().addTo(map); trackLayer = L.layerGroup().addTo(map); zoneLayer = L.layerGroup().addTo(map);
+}
+
+/* ================= Monitoring ================= */
+async function loadUnits(){
+  try{
+    const r = await api("core/search_items",{spec:{itemsType:"avl_unit",propName:"sys_name",propValueMask:"*",sortType:"sys_name"},force:1,flags:1|1024|4194304,from:0,to:0});
+    units = (r.items||[]).map(u=>({id:u.id,nm:u.nm,pos:u.pos,h:holat(u)})).sort((a,b)=>a.nm.localeCompare(b.nm,undefined,{numeric:true}));
+    drawUnits(); $("upd").textContent = "Yangilandi: "+fmtT(Date.now()/1000)+" · har 30 soniyada";
+  }catch(e){ $("upd").textContent = "Yangilashda xato: "+e.message; }
+}
+let selUnit = null;
+function drawUnits(){
+  const q = $("q").value.toLowerCase();
+  const c = {move:0,stop:0,off:0}; units.forEach(u=>c[u.h]++);
+  $("c-move").textContent=c.move; $("c-stop").textContent=c.stop; $("c-off").textContent=c.off;
+  $("ulist").innerHTML = units.filter(u=>u.nm.toLowerCase().includes(q)).map(u=>`
+    <div class="row ${u.id===selUnit?"sel":""}" data-id="${u.id}">
+      <span class="dot d-${u.h}"></span>
+      <div><div class="nm">${esc(raqam(u.nm))}</div><div class="sub">${esc(turi(u.nm))}</div></div>
+      <div class="rt">${u.pos?Math.round(u.pos.s)+" km/s":"—"}<br>${u.pos?ago(u.pos.t):"ma'lumot yo'q"}</div>
+    </div>`).join("");
+  unitLayer.clearLayers(); markers = {};
+  units.forEach(u=>{
+    if(!u.pos) return;
+    const m = L.circleMarker([u.pos.y,u.pos.x],{radius:8,color:"#fff",weight:2,fillColor:RANG[u.h],fillOpacity:1})
+      .bindTooltip(`<span class="lbl">${esc(raqam(u.nm))}</span>`,{permanent:true,direction:"right",offset:[8,0],className:"",opacity:1})
+      .bindPopup(`<b>${esc(u.nm)}</b><br>Holat: ${HOLAT_NOMI[u.h]}<br>Tezlik: ${Math.round(u.pos.s)} km/soat<br>Oxirgi signal: ${fmtT(u.pos.t)} (${ago(u.pos.t)})<br><a href="#" onclick="openTrack(${u.id});return false">Bugungi trek</a>`);
+    m.addTo(unitLayer); markers[u.id]=m;
+  });
+}
+$("q").oninput = drawUnits;
+$("ulist").onclick = e => { const r=e.target.closest(".row"); if(!r) return; selUnit=+r.dataset.id; const m=markers[selUnit]; if(m){ map.setView(m.getLatLng(),16); m.openPopup(); } drawUnits(); };
+
+/* ================= Treklar ================= */
+function initTrk(){
+  $("tu").innerHTML = units.map(u=>`<option value="${u.id}">${esc(u.nm)}</option>`).join("");
+  const d=new Date(); $("td").value = `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}`;
+}
+window.openTrack = id => { setTab("trk"); $("tu").value=id; showTrack(); };
+async function showTrack(){
+  const id=+$("tu").value, d=$("td").value; if(!id||!d) return;
+  const from = Math.floor(new Date(d+"T"+$("tf").value+":00").getTime()/1000);
+  const to = Math.floor(new Date(d+"T"+$("tt").value+":59").getTime()/1000);
+  $("tinfo").textContent="Yuklanmoqda..."; trackLayer.clearLayers();
+  try{
+    const r = await api("messages/load_interval",{itemId:id,timeFrom:from,timeTo:to,flags:1,flagsMask:65281,loadCount:50000});
+    await api("messages/unload",{});
+    const pts = (r.messages||[]).filter(m=>m.pos).map(m=>({ll:[m.pos.y,m.pos.x],t:m.t,s:m.pos.s}));
+    if(!pts.length){ $("tinfo").textContent="Bu vaqt oralig'ida ma'lumot yo'q."; return; }
+    let km=0,maxs=0; for(let i=1;i<pts.length;i++){ const dd=hav(pts[i-1].ll,pts[i].ll); if(dd<5) km+=dd; maxs=Math.max(maxs,pts[i].s); }
+    for(let i=1;i<pts.length;i++){ const s=pts[i].s; L.polyline([pts[i-1].ll,pts[i].ll],{color:s>60?"#d64545":s>30?"#e5a50a":"#1b8a4b",weight:4,opacity:.85}).addTo(trackLayer); }
+    L.circleMarker(pts[0].ll,{radius:7,color:"#fff",weight:2,fillColor:"#2f7fd8",fillOpacity:1}).bindTooltip("Boshlanish "+fmtT(pts[0].t)).addTo(trackLayer);
+    L.circleMarker(pts.at(-1).ll,{radius:7,color:"#fff",weight:2,fillColor:"#d64545",fillOpacity:1}).bindTooltip("Tugash "+fmtT(pts.at(-1).t)).addTo(trackLayer);
+    map.fitBounds(L.latLngBounds(pts.map(p=>p.ll)),{padding:[30,30]});
+    $("tinfo").innerHTML = `<b>${esc($("tu").selectedOptions[0].text)}</b><br>Yurgan masofa: <b>${km.toFixed(1)} km</b><br>Maksimal tezlik: <b>${Math.round(maxs)} km/soat</b><br>Nuqtalar: ${pts.length}<br>${fmtT(pts[0].t)} – ${fmtT(pts.at(-1).t)}<br><span style="font-size:12px">Yashil &lt;30, sariq 30–60, qizil &gt;60 km/soat</span>`;
+  }catch(e){ $("tinfo").textContent="Xato: "+e.message; }
+}
+$("tbtn").onclick = showTrack;
+$("tclr").onclick = () => { trackLayer.clearLayers(); $("tinfo").textContent="Mashina va sanani tanlang."; };
+
+/* ================= Geozonalar ================= */
+/* Geozonalar: Wialondagi kamchiliklar shu yerda tekshiriladi va to'g'rilangan ko'rinishda chiqadi:
+   - MFY guruh nomlari tozalanadi, takroriy tartib raqamlari o'rniga alifbo/raqam bo'yicha to'g'ri tartib;
+   - MFY chegarasi (katta poligon) nuqtalar sonidan chiqariladi;
+   - chegaradan tashqaridagi nuqtalar, takroriy nomlar, chegarasi yo'q MFYlar belgilanadi. */
+let ZD = {}, AUD = {}, gFilter = "all";
+const isMfy = g => /МФЙ|катеж|Катеж/i.test(g.n) && g.n.includes("✅");
+const cleanName = n => n.replace(/✅/g,"").replace(/\(\d+\)/g,"").replace(/Олтинкўл т|Олтинкул т|Отинкул т/g,"").replace(/\s+/g," ").trim();
+const origNo = n => { const m=n.match(/\((\d+)\)/); return m?+m[1]:null; };
+function pip(pt,poly){let c=false;for(let i=0,j=poly.length-1;i<poly.length;j=i++){const[xi,yi]=poly[i],[xj,yj]=poly[j];if(((yi>pt[1])!=(yj>pt[1]))&&(pt[0]<(xj-xi)*(pt[1]-yi)/(yj-yi)+xi))c=!c}return c}
+const cen = z => [z.p.reduce((s,q)=>s+q.x,0)/z.p.length, z.p.reduce((s,q)=>s+q.y,0)/z.p.length];
+async function loadGroups(){
+  try{
+    const r = await api("core/search_item",{id:RES_ID,flags:1|1048576});
+    zoneGroups = r.item.zg || {};
+    drawGroups();
+    const ids=[...new Set(Object.values(zoneGroups).flatMap(g=>g.zns))];
+    for(let i=0;i<ids.length;i+=500){
+      (await api("resource/get_zone_data",{itemId:RES_ID,col:ids.slice(i,i+500),flags:28})).forEach(z=>ZD[z.id]=z);
+      $("gsum").textContent=`Geozonalar tekshirilmoqda... ${Math.min(i+500,ids.length)} / ${ids.length}`;
+    }
+    audit(); drawGroups();
+  }catch(e){ $("gsum").textContent="Geozonalarni yuklab bo'lmadi: "+e.message; }
+}
+function audit(){
+  const mfy=Object.values(zoneGroups).filter(isMfy);
+  const bnds=mfy.map(g=>({g,b:g.zns.map(i=>ZD[i]).filter(z=>z&&z.t===2).sort((a,c)=>c.p.length-a.p.length)[0]})).filter(x=>x.b);
+  const noCount={}; mfy.forEach(g=>{const n=origNo(g.n); if(n!=null) noCount[n]=(noCount[n]||0)+1;});
+  let tOut=0,tDup=0,tNoB=0,tPts=0;
+  mfy.forEach(g=>{
+    const zs=g.zns.map(i=>ZD[i]).filter(Boolean);
+    const bz=bnds.find(x=>x.g===g); const b=bz&&bz.b; const poly=b&&b.p.map(q=>[q.x,q.y]);
+    const pts=zs.filter(z=>z!==b); const seen={}; const out=[], dup=[];
+    pts.forEach(z=>{
+      if(seen[z.n]) dup.push(z.id); seen[z.n]=1;
+      if(poly){ const c=cen(z); if(!pip(c,poly)){ const o=bnds.find(x=>x.g!==g&&pip(c,x.b.p.map(q=>[q.x,q.y]))); out.push({id:z.id,n:z.n,to:o?cleanName(o.g.n):null}); } }
+    });
+    const n=origNo(g.n);
+    AUD[g.id]={bnd:b?b.id:null,pts:pts.length,out,dup,noB:!b,noDup:n!=null&&noCount[n]>1,typo:/Отинкул|\s{2,}/.test(g.n)};
+    tOut+=out.length; tDup+=dup.length; tNoB+=b?0:1; tPts+=pts.length;
+  });
+  $("gsum").innerHTML=`${mfy.length} ta MFY · ${tPts} ta nuqta<br><span class="bad b-red">${tOut} ta nuqta chegaradan tashqarida</span><span class="bad b-yel">${tDup} ta takror nom</span><span class="bad b-yel">${tNoB} ta MFY chegarasiz</span>`;
+}
+function groupBadges(id){
+  const a=AUD[id]; if(!a) return "";
+  let h="";
+  if(a.out.length) h+=`<span class="bad b-red">${a.out.length} tashqarida</span>`;
+  if(a.dup.length) h+=`<span class="bad b-yel">${a.dup.length} takror nom</span>`;
+  if(a.noB) h+=`<span class="bad b-yel">chegara yo'q</span>`;
+  if(a.noDup) h+=`<span class="bad b-yel">raqami takror</span>`;
+  if(a.typo) h+=`<span class="bad b-yel">nomida xato</span>`;
+  return h||`<span class="bad b-ok">to'g'ri</span>`;
+}
+function drawGroups(){
+  const q=$("gq").value.toLowerCase();
+  let arr=Object.values(zoneGroups);
+  if(gFilter==="other") arr=arr.filter(g=>!isMfy(g));
+  else { arr=arr.filter(isMfy); if(gFilter==="bad") arr=arr.filter(g=>{const a=AUD[g.id];return a&&(a.out.length||a.dup.length||a.noB||a.noDup||a.typo)}); }
+  arr.sort((a,b)=>cleanName(a.n).localeCompare(cleanName(b.n),"ru",{numeric:true}));
+  $("glist").innerHTML = arr.filter(g=>cleanName(g.n).toLowerCase().includes(q)).map((g,i)=>{
+    const a=AUD[g.id]; const cnt=a?a.pts:g.zns.length;
+    return `<div class="row" data-g="${g.id}"><div style="color:var(--mut);width:22px">${i+1}</div><div style="flex:1"><div class="nm">${esc(cleanName(g.n))}</div><div>${isMfy(g)?groupBadges(g.id):""}</div></div><div class="rt">${cnt} ta<br>nuqta</div></div>`;}).join("");
+}
+document.querySelectorAll("[data-gf]").forEach(b=>b.onclick=()=>{gFilter=b.dataset.gf;document.querySelectorAll("[data-gf]").forEach(x=>x.classList.toggle("on",x===b));drawGroups();});
+$("gq").oninput = drawGroups;
+$("glist").onclick = e => { const r=e.target.closest(".row"); if(r) showGroup(+r.dataset.g); };
+async function showGroup(gid){
+  const g = zoneGroups[gid]; if(!g) return;
+  $("ginfo").textContent="Yuklanmoqda..."; zoneLayer.clearLayers();
+  document.querySelectorAll("#glist .row").forEach(r=>r.classList.toggle("sel",+r.dataset.g===gid));
+  try{
+    let zs=g.zns.map(i=>ZD[i]).filter(Boolean);
+    if(zs.length<g.zns.length) zs=await api("resource/get_zone_data",{itemId:RES_ID,col:g.zns,flags:28});
+    const a=AUD[gid]||{out:[],dup:[]}; const outIds=new Set(a.out.map(o=>o.id)), dupIds=new Set(a.dup);
+    const all=[];
+    zs.forEach(z=>{
+      const ll=(z.p||[]).map(p=>[p.y,p.x]); if(!ll.length) return; all.push(...ll);
+      const bad=outIds.has(z.id), dup=dupIds.has(z.id);
+      const col=bad?"#d64545":dup?"#e5a50a":z.id===a.bnd?"#2f7fd8":"#1b8a4b";
+      let lay;
+      if(z.id===a.bnd||z.t===2) lay=L.polygon(ll,{color:col,weight:2,fillOpacity:z.id===a.bnd?.06:.2,dashArray:z.id===a.bnd?"6 4":null});
+      else if(z.t===3) lay=L.circle(ll[0],{radius:z.p[0].r||z.w||20,color:col,weight:2,fillOpacity:.4});
+      else lay=L.polyline(ll,{color:col,weight:6,opacity:.9});
+      const o=a.out.find(x=>x.id===z.id);
+      lay.bindTooltip(z.id===a.bnd?"MFY chegarasi":`№ ${esc(z.n)}${bad?" · chegaradan tashqarida"+(o.to?" ("+esc(o.to)+" hududida)":""):""}${dup?" · takror nom":""}`).addTo(zoneLayer);
+    });
+    if(all.length) map.fitBounds(L.latLngBounds(all),{padding:[30,30]});
+    let h=`<b>${esc(cleanName(g.n))}</b>: ${a.pts??zs.length} ta nuqta${a.bnd?" + chegara":""}`;
+    if(a.out&&a.out.length) h+=`<br><b style="color:#9b2222">Chegaradan tashqarida:</b> `+a.out.map(o=>"№"+esc(o.n)+(o.to?" → "+esc(o.to):"")).join(", ");
+    if(a.dup&&a.dup.length) h+=`<br><b style="color:#7a5800">Takror nomli:</b> `+a.dup.map(i=>"№"+esc(ZD[i].n)).join(", ");
+    h+=`<br><span style="font-size:12px">Yashil – to'g'ri, qizil – tashqarida, sariq – takror nom, ko'k punktir – chegara</span>`;
+    $("ginfo").innerHTML=h;
+  }catch(e){ $("ginfo").textContent="Xato: "+e.message; }
+}
+
+/* ================= MFY tozalik ================= */
+function monday(d){ const x=new Date(d); x.setHours(0,0,0,0); x.setDate(x.getDate()-((x.getDay()+6)%7)); return x; }
+function initWeeks(){
+  const m=monday(new Date()); let h="";
+  for(let i=0;i<8;i++){ const a=new Date(m); a.setDate(a.getDate()-7*i); const b=new Date(a); b.setDate(b.getDate()+6);
+    h+=`<option value="${a.getTime()}">${pad(a.getDate())}.${pad(a.getMonth()+1)} – ${pad(b.getDate())}.${pad(b.getMonth()+1)}${i===0?" (joriy hafta)":""}</option>`; }
+  $("wk").innerHTML=h;
+}
+async function visited(gid,from,to){
+  const tpl={id:0,n:"mfy",ct:"avl_unit_group",p:"",tbl:[{n:"unit_group_zones_visit",l:"v",c:"zone_name,time_begin,visits_count",cl:"Z,T,V",s:"",sl:"",
+    p:JSON.stringify({grouping:'{"type":"geozone"}',geozones:`gr${RES_ID}_${gid},`}),sch:{f1:0,f2:0,t1:0,t2:0,m:0,y:0,w:0,fl:0},f:0}]};
+  const r = await api("report/exec_report",{reportResourceId:RES_ID,reportTemplateId:0,reportTemplate:tpl,reportObjectId:GROUP_ID,reportObjectSecId:0,interval:{from,to,flags:0}});
+  const n = r.tables && r.tables.length ? r.tables[0].rows : 0;
+  await api("report/cleanup_result",{});
+  return n;
+}
+let ztRunning=false;
+async function calcToz(){
+  if(ztRunning) return; ztRunning=true; $("zbtn").disabled=true;
+  const from=Math.floor(+$("wk").value/1000), to=Math.min(from+7*86400-1, Math.floor(Date.now()/1000));
+  const rows=[]; REJA.forEach(([t,ms])=>ms.forEach(([n,k,g])=>rows.push({t,n,k,g})));
+  let done=0; $("ztb").innerHTML=""; $("kpis").innerHTML="";
+  for(const r of rows){
+    const grp=zoneGroups[r.g];
+    if(r.g==null||!grp){ r.izoh="Geozona guruhi yo'q"; }
+    else{
+      // MFY chegarasi (poligon) nuqta emas - uni sanoqdan chiqaramiz
+      const a=AUD[r.g], hasB=a?!!a.bnd:false;
+      r.jami=a?a.pts:grp.zns.length;
+      try{ let n=await visited(r.g,from,to); if(hasB&&n>0) n--; r.kir=Math.min(n,r.jami); r.f=r.jami?r.kir/r.jami:0; }catch(e){ r.izoh="Xato"; }
+    }
+    done++; $("zbar").style.width=(100*done/rows.length)+"%"; $("zst").textContent=`${done} / ${rows.length}`;
+    renderToz(rows.slice(0,done));
+  }
+  $("zst").textContent="Tayyor · "+fmtT(Date.now()/1000); ztRunning=false; $("zbtn").disabled=false;
+}
+function renderToz(rows){
+  const ok=rows.filter(r=>r.f!=null);
+  const avg=ok.length?ok.reduce((s,r)=>s+r.f,0)/ok.length:0;
+  $("kpis").innerHTML=`
+    <div class="kpi"><span>O'rtacha tozalik</span><b>${Math.round(avg*100)}%</b></div>
+    <div class="kpi"><span>90% va yuqori</span><b style="color:#13633a">${ok.filter(r=>r.f>=.9).length}</b></div>
+    <div class="kpi"><span>60–89%</span><b style="color:#7a5800">${ok.filter(r=>r.f>=.6&&r.f<.9).length}</b></div>
+    <div class="kpi"><span>60% dan past</span><b style="color:#9b2222">${ok.filter(r=>r.f<.6).length}</b></div>`;
+  let last=null;
+  $("ztb").innerHTML=rows.map(r=>{ const cls=r.f==null?"":r.f>=.9?"pg":r.f>=.6?"py":"pr"; const first=r.t!==last; last=r.t;
+    return `<tr><td>${first?"<b>"+esc(r.t)+"</b>":""}</td><td>${esc(r.n)}</td><td>${esc(r.k||"—")}</td><td>${r.jami!=null?r.kir+" / "+r.jami:"—"}</td>
+      <td class="p ${cls}">${r.f!=null?Math.round(r.f*100)+"%":esc(r.izoh||"")}</td>
+      <td>${r.g!=null?`<button class="tbtn" onclick="toMap(${r.g})">Xaritada</button>`:""}</td></tr>`; }).join("");
+}
+window.toMap = g => { setTab("geo"); showGroup(g); };
+$("zbtn").onclick = calcToz;
+$("zback").onclick = () => setTab("mon");
+
+/* ================= Tablar ================= */
+function setTab(t){
+  document.querySelectorAll("nav button").forEach(b=>b.classList.toggle("on",b.dataset.t===t));
+  ["mon","trk","geo"].forEach(p=>$("p-"+p).classList.toggle("hidden",p!==t));
+  $("toz").classList.toggle("hidden",t!=="toz");
+  if(t!=="toz") setTimeout(()=>map&&map.invalidateSize(),50);
+}
+document.querySelectorAll("nav button").forEach(b=>b.onclick=()=>setTab(b.dataset.t));
+
+/* ================= Boshlash ================= */
+const saved = store.get("bte_token");
+if(saved) login(saved);
+</script>
+</body>
+</html>
