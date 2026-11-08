@@ -1,0 +1,3 @@
+User-agent: *
+Allow: /
+Sitemap: https://aa8132847-crypto.github.io/bio-tex-eko-gps/sitemap.xml

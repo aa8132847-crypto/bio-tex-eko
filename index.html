@@ -3,11 +3,18 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>BIO TEX EKO – Monitoring</title>
+<title>BIO TEX EKO GPS – Oltinko'l tumani monitoring</title>
+<meta name="description" content="BIO TEX EKO GPS – Oltinko'l tumani chiqindi tashish mashinalari GPS monitoringi, treklar, geozonalar va MFY tozalik foizlari.">
+<meta name="keywords" content="BIO TEX EKO, Bio tex eko gps, biotexeko, Oltinko'l, GPS monitoring, MFY tozalik">
+<meta name="robots" content="index,follow">
+<meta property="og:title" content="BIO TEX EKO GPS">
+<meta property="og:description" content="Oltinko'l tumani GPS monitoring va MFY tozalik paneli">
+<meta property="og:type" content="website">
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Ccircle cx='32' cy='32' r='30' fill='%231b8a4b'/%3E%3Cpath d='M18 40c0-14 10-22 28-24-2 18-10 28-24 28-2 0-3-1-4-4z' fill='%23fff'/%3E%3C/svg%3E">
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
 <script src="https://2.wialon.uz/wsdk/script/wialon.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 <style>
 :root{--g:#1b8a4b;--g2:#e8f5ee;--txt:#1d2733;--mut:#6b7785;--line:#e3e8ee;--bg:#f5f7f9;--red:#d64545;--yel:#e5a50a;--blue:#2f7fd8}
 *{box-sizing:border-box}
@@ -172,6 +179,7 @@ td.p{font-weight:700;text-align:center;width:80px}
     <label class="fl in">Gacha<input id="zt" type="date"></label>
     <div class="seg" id="zmode"><button data-m="day">Kunlik</button><button data-m="week" class="on">Haftalik</button><button data-m="month">Oylik</button><button data-m="year">Yillik</button></div>
     <button class="btn" id="zbtn">Hisoblash</button>
+    <button class="btn sec" id="zxls" disabled>⬇ Excelga yuklash</button>
     <button class="btn sec" id="zback" style="margin-left:auto">Xaritaga qaytish</button>
   </div>
   <div class="tz-top">
@@ -571,7 +579,7 @@ async function calcToz(){
     done++; $("zbar").style.width=(100*done/list.length)+"%"; $("zst").textContent=`Hisoblanmoqda: ${done} / ${list.length}`;
     if(done%5===0||done===list.length) renderToz();
   }
-  $("zst").textContent=`Tayyor · ${fmtDT(from)} – ${fmtDT(to)}`; ztRunning=false; $("zbtn").disabled=false;
+  $("zst").textContent=`Tayyor · ${fmtDT(from)} – ${fmtDT(to)}`; ztRunning=false; $("zbtn").disabled=false; $("zxls").disabled=false;
 }
 function periods(){
   const {from,to}=ZRANGE; const P=[]; const keyOf=t=>toD(t);
@@ -616,6 +624,26 @@ window.toMap = (g,useRange) => { setTab("geo");
   showGroup(g,vis,lab); };
 $("zbtn").onclick = calcToz;
 $("zback").onclick = () => setTab("mon");
+// Excelga yuklash: joriy ko'rinish (kunlik/haftalik/oylik/yillik) + nuqtalar soni varag'i
+$("zxls").onclick = () => {
+  if(!ZRANGE||typeof XLSX==="undefined") return;
+  const P=periods().slice(0,200); const allDays=[]; for(let t=ZRANGE.from;t<=ZRANGE.to;t+=86400) allDays.push(toD(t));
+  const MODE={day:"Kunlik",week:"Haftalik",month:"Oylik",year:"Yillik"}[zMode];
+  const head=["Texnika","MFY","Kunlari",...P.map(p=>p.lab+(p.sub?" "+p.sub:"")),"Butun davr"];
+  const aoa=[["BIO TEX EKO – MFY tozalik foizi ("+MODE+")"],["Davr: "+fmtDT(ZRANGE.from)+" – "+fmtDT(ZRANGE.to)],[],head];
+  const aoa2=[["Nuqtalar soni: kirilgan / jami"],[],head];
+  REJA.forEach(([t,ms])=>ms.forEach(([n,k,g])=>{ const ok=g!=null&&zoneGroups[g];
+    const cells=P.map(p=>ok?pct(g,p.days):null), all=ok?pct(g,allDays):null;
+    aoa.push([t,n,k||"",...cells.map(x=>x?x.f:""),all?all.f:(g==null?"guruh yo'q":"")]);
+    aoa2.push([t,n,k||"",...cells.map(x=>x?`${x.n}/${x.tot}`:""),all?`${all.n}/${all.tot}`:""]); }));
+  const ws=XLSX.utils.aoa_to_sheet(aoa), ws2=XLSX.utils.aoa_to_sheet(aoa2);
+  const rg=XLSX.utils.decode_range(ws["!ref"]);
+  for(let R=4;R<=rg.e.r;R++) for(let C=3;C<=rg.e.c;C++){ const c=ws[XLSX.utils.encode_cell({r:R,c:C})]; if(c&&typeof c.v==="number") c.z="0%"; }
+  ws["!cols"]=[{wch:10},{wch:20},{wch:11},...P.map(()=>({wch:12})),{wch:12}]; ws2["!cols"]=ws["!cols"];
+  ws["!freeze"]={xSplit:3,ySplit:4};
+  const wb=XLSX.utils.book_new(); XLSX.utils.book_append_sheet(wb,ws,"Foizlar"); XLSX.utils.book_append_sheet(wb,ws2,"Nuqtalar");
+  XLSX.writeFile(wb,`MFY_tozalik_${MODE}_${toD(ZRANGE.from)}_${toD(ZRANGE.to)}.xlsx`);
+};
 
 /* ================= Tablar ================= */
 function setTab(t){
