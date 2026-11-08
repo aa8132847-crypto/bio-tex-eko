@@ -189,7 +189,7 @@ td.p{font-weight:700;text-align:center;width:80px}
   </div>
   <div class="kpis" id="kpis"></div>
   <div id="znote"></div>
-  <div style="color:var(--mut);font-size:12px;margin-bottom:8px">Foiz = shu davrda istalgan mashina kirgan nuqtalar ÷ MFYdagi jami nuqtalar (MFY chegarasi hisobga olinmaydi). Yashil ≥ 90%, sariq 60–89%, qizil &lt; 60%. • – reja bo'yicha shu kun xizmat kuni. MFY nomini bosing – xaritada kirilgan (yashil) va kirilmagan (qizil) nuqtalar ko'rinadi.</div>
+  <div style="color:var(--mut);font-size:12px;margin-bottom:8px">Foiz = shu davrda istalgan mashina kirgan geozonalar ÷ MFYdagi jami geozonalar (MFY chegarasi hisobga olinmaydi). Yashil ≥ 90%, sariq 60–89%, qizil &lt; 60%. • – reja bo'yicha shu kun xizmat kuni. MFY nomini bosing – xaritada kirilgan (yashil) va kirilmagan (qizil) geozonalar ko'rinadi.</div>
   <div style="overflow:auto"><table id="ztable"></table></div>
 </section>
 </div>
@@ -417,13 +417,13 @@ async function trackZones(id,from,to){
     const t=(r.reportResult||r).tables[0]; let rows=[];
     if(t&&t.rows) rows=await api("report/select_result_rows",{tableIndex:0,config:{type:"range",data:{from:0,to:t.rows-1,level:0}}});
     await api("report/cleanup_result",{});
-    // har bir kirishni MFYga bog'lash (kirish nuqtasi qaysi MFY chegarasida)
+    // har bir kirishni MFYga bog'lash (kirish geozonasi qaysi MFY chegarasida)
     const by={};
     rows.forEach(x=>{ const c=x.c, b=c[1]; if(!b||!b.v) return; const pt=[b.x,b.y];
       const g=mfyOfPoint(pt,c[0]); if(!g) return; const o=by[g.id]||(by[g.id]={g,names:new Set(),a:b.v,b:0}); o.names.add(c[0]); o.a=Math.min(o.a,b.v); o.b=Math.max(o.b,(c[2]&&c[2].v)||b.v); });
     const list=Object.values(by).sort((x,y)=>x.a-y.a);
     $("tzones").innerHTML=`<div class="sh">Kirgan geozonalar (${list.length} ta MFY)</div>`+(list.length?list.map(o=>{const a=AUD[o.g.id];const tot=a?a.pts:o.g.zns.length;const n=[...o.names].filter(x=>!/МФЙ/.test(x)).length;
-      return `<div class="stop" onclick="toMap(${o.g.id})"><div style="flex:1"><b>${esc(cleanName(o.g.n))}</b><br><span style="color:var(--mut)">${fmtDT(o.a)} – ${fmtS(o.b)}</span></div><div class="rt">${n} / ${tot}<br>nuqta</div></div>`}).join(""):`<div class="info">MFY geozonalariga kirmagan.</div>`);
+      return `<div class="stop" onclick="toMap(${o.g.id})"><div style="flex:1"><b>${esc(cleanName(o.g.n))}</b><br><span style="color:var(--mut)">${fmtDT(o.a)} – ${fmtS(o.b)}</span></div><div class="rt">${n} / ${tot}<br>geozona</div></div>`}).join(""):`<div class="info">MFY geozonalariga kirmagan.</div>`);
   }catch(e){ $("tzones").innerHTML=`<div class="info">Geozonalarni hisoblab bo'lmadi: ${esc(e.message)}</div>`; }
 }
 function mfyOfPoint(pt,name){
@@ -437,8 +437,8 @@ $("tclr").onclick = () => { trackLayer.clearLayers(); $("tinfo").textContent="Ma
 /* ================= Geozonalar ================= */
 /* Geozonalar: Wialondagi kamchiliklar shu yerda tekshiriladi va to'g'rilangan ko'rinishda chiqadi:
    - MFY guruh nomlari tozalanadi, takroriy tartib raqamlari o'rniga alifbo/raqam bo'yicha to'g'ri tartib;
-   - MFY chegarasi (katta poligon) nuqtalar sonidan chiqariladi;
-   - chegaradan tashqaridagi nuqtalar, takroriy nomlar, chegarasi yo'q MFYlar belgilanadi. */
+   - MFY chegarasi (katta poligon) geozonalar sonidan chiqariladi;
+   - chegaradan tashqaridagi geozonalar, takroriy nomlar, chegarasi yo'q MFYlar belgilanadi. */
 let ZD = {}, AUD = {}, gFilter = "all";
 const isMfy = g => /МФЙ|катеж|Катеж/i.test(g.n) && g.n.includes("✅");
 const cleanName = n => n.replace(/✅/g,"").replace(/\(\d+\)/g,"").replace(/Олтинкўл т|Олтинкул т|Отинкул т/g,"").replace(/\s+/g," ").trim();
@@ -475,7 +475,7 @@ function audit(){
     AUD[g.id]={bnd:b?b.id:null,pts:pts.length,out,dup,noB:!b,noDup:n!=null&&noCount[n]>1,typo:/Отинкул|\s{2,}/.test(g.n)};
     tOut+=out.length; tDup+=dup.length; tNoB+=b?0:1; tPts+=pts.length;
   });
-  $("gsum").innerHTML=`${mfy.length} ta MFY · ${tPts} ta nuqta<br><span class="bad b-red">${tOut} ta nuqta chegaradan tashqarida</span><span class="bad b-yel">${tDup} ta takror nom</span><span class="bad b-yel">${tNoB} ta MFY chegarasiz</span>`;
+  $("gsum").innerHTML=`${mfy.length} ta MFY · ${tPts} ta geozona<br><span class="bad b-red">${tOut} ta geozona chegaradan tashqarida</span><span class="bad b-yel">${tDup} ta takror nom</span><span class="bad b-yel">${tNoB} ta MFY chegarasiz</span>`;
 }
 function groupBadges(id){
   const a=AUD[id]; if(!a) return "";
@@ -495,7 +495,7 @@ function drawGroups(){
   arr.sort((a,b)=>cleanName(a.n).localeCompare(cleanName(b.n),"ru",{numeric:true}));
   $("glist").innerHTML = arr.filter(g=>cleanName(g.n).toLowerCase().includes(q)).map((g,i)=>{
     const a=AUD[g.id]; const cnt=a?a.pts:g.zns.length;
-    return `<div class="row" data-g="${g.id}"><div style="color:var(--mut);width:22px">${i+1}</div><div style="flex:1"><div class="nm">${esc(cleanName(g.n))}</div><div>${isMfy(g)?groupBadges(g.id):""}</div></div><div class="rt">${cnt} ta<br>nuqta</div></div>`;}).join("");
+    return `<div class="row" data-g="${g.id}"><div style="color:var(--mut);width:22px">${i+1}</div><div style="flex:1"><div class="nm">${esc(cleanName(g.n))}</div><div>${isMfy(g)?groupBadges(g.id):""}</div></div><div class="rt">${cnt} ta<br>geozona</div></div>`;}).join("");
 }
 document.querySelectorAll("[data-gf]").forEach(b=>b.onclick=()=>{gFilter=b.dataset.gf;document.querySelectorAll("[data-gf]").forEach(x=>x.classList.toggle("on",x===b));drawGroups();});
 $("gq").oninput = drawGroups;
@@ -521,7 +521,7 @@ async function showGroup(gid,vis,lab){
       lay.bindTooltip(z.id===a.bnd?"MFY chegarasi":`№ ${esc(z.n)}${vis?(vis.has(z.id)?" · kirilgan":" · KIRILMAGAN"):""}${bad?" · chegaradan tashqarida"+(o.to?" ("+esc(o.to)+" hududida)":""):""}${dup?" · takror nom":""}`).addTo(zoneLayer);
     });
     if(all.length) map.fitBounds(L.latLngBounds(all),{padding:[30,30]});
-    let h=`<b>${esc(cleanName(g.n))}</b>: ${a.pts??zs.length} ta nuqta${a.bnd?" + chegara":""}`;
+    let h=`<b>${esc(cleanName(g.n))}</b>: ${a.pts??zs.length} ta geozona${a.bnd?" + chegara":""}`;
     if(vis){
       const tot=a.pts||zs.length; h+=`<br>${esc(lab)}<br>Kirilgan: <b style="color:#13633a">${vis.size}</b> · Kirilmagan: <b style="color:#9b2222">${tot-vis.size}</b> · <b>${Math.round(100*vis.size/tot)}%</b>`;
       const plan=REJA.find(([t,ms])=>ms.some(m=>m[2]===gid)); const u=plan&&units.find(x=>raqam(x.nm)===plan[0]);
@@ -537,7 +537,7 @@ async function showGroup(gid,vis,lab){
 }
 
 /* ================= MFY tozalik =================
-   Har bir MFY uchun bitta hisobot: tanlangan oraliqda kunlar bo'yicha qaysi nuqtalarga kirilgani.
+   Har bir MFY uchun bitta hisobot: tanlangan oraliqda kunlar bo'yicha qaysi geozonalarga kirilgani.
    Keyin kunlik / haftalik / oylik / yillik foizlar shu kunlik ma'lumotdan yig'iladi. */
 let zMode="week", ZRES={}, ZRANGE=null, ztRunning=false;
 const OY=["Yan","Fev","Mar","Apr","May","Iyun","Iyul","Avg","Sen","Okt","Noy","Dek"];
@@ -611,27 +611,27 @@ function renderToz(){
   rows.forEach(r=>{ const first=r.t!==last; last=r.t; const ok=r.g!=null&&zoneGroups[r.g]; const plan=kunlar(r.k);
     h+=`<tr><td>${first?"<b>"+esc(r.t)+"</b>":""}</td><td class="${ok?"mf":""}" ${ok?`onclick="toMap(${r.g},true)"`:""}>${esc(r.n)}</td><td>${esc(r.k||"—")}</td>`;
     P.forEach(p=>{ const x=ok?pct(r.g,p.days):null; const pl=p.dow!=null&&plan.has(p.dow)?" plan":"";
-      h+=`<td class="c ${cls(x&&x.f)}${pl}" title="${x?x.n+" / "+x.tot+" nuqta":""}">${x?Math.round(x.f*100)+"%":(ok&&ZRES[r.g]?"—":"")}</td>`; });
+      h+=`<td class="c ${cls(x&&x.f)}${pl}" title="${x?x.n+" / "+x.tot+" geozona":""}">${x?Math.round(x.f*100)+"%":(ok&&ZRES[r.g]?"—":"")}</td>`; });
     const all=ok?pct(r.g,allDays):null;
-    h+=`<td class="c ${cls(all&&all.f)}" title="${all?all.n+" / "+all.tot+" nuqta":""}">${all?Math.round(all.f*100)+"%":(r.g==null?"guruh yo'q":"")}</td></tr>`; });
+    h+=`<td class="c ${cls(all&&all.f)}" title="${all?all.n+" / "+all.tot+" geozona":""}">${all?Math.round(all.f*100)+"%":(r.g==null?"guruh yo'q":"")}</td></tr>`; });
   $("ztable").innerHTML=h+"</tbody>";
   $("znote").innerHTML=note;
 }
-// MFY ni xaritada ko'rsatish: tanlangan davrda kirilgan (yashil) va kirilmagan (qizil) nuqtalar
+// MFY ni xaritada ko'rsatish: tanlangan davrda kirilgan (yashil) va kirilmagan (qizil) geozonalar
 window.toMap = (g,useRange) => { setTab("geo");
   let vis=null, lab="";
   if(useRange&&ZRANGE&&ZRES[g]&&!ZRES[g].err){ const days=[]; for(let t=ZRANGE.from;t<=ZRANGE.to;t+=86400) days.push(toD(t)); vis=pct(g,days).set; lab=`${fmtDT(ZRANGE.from)} – ${fmtDT(ZRANGE.to)}`; }
   showGroup(g,vis,lab); };
 $("zbtn").onclick = calcToz;
 $("zback").onclick = () => setTab("mon");
-// Excelga yuklash: joriy ko'rinish (kunlik/haftalik/oylik/yillik) + nuqtalar soni varag'i
+// Excelga yuklash: joriy ko'rinish (kunlik/haftalik/oylik/yillik) + geozonalar soni varag'i
 $("zxls").onclick = () => {
   if(!ZRANGE||typeof XLSX==="undefined") return;
   const P=periods().slice(0,200); const allDays=[]; for(let t=ZRANGE.from;t<=ZRANGE.to;t+=86400) allDays.push(toD(t));
   const MODE={day:"Kunlik",week:"Haftalik",month:"Oylik",year:"Yillik"}[zMode];
   const head=["Texnika","MFY","Kunlari",...P.map(p=>p.lab+(p.sub?" "+p.sub:"")),"Butun davr"];
   const aoa=[["BIO TEX EKO – MFY tozalik foizi ("+MODE+")"],["Davr: "+fmtDT(ZRANGE.from)+" – "+fmtDT(ZRANGE.to)],[],head];
-  const aoa2=[["Nuqtalar soni: kirilgan / jami"],[],head];
+  const aoa2=[["Geozonalar soni: kirilgan / jami"],[],head];
   REJA.forEach(([t,ms])=>ms.forEach(([n,k,g])=>{ const ok=g!=null&&zoneGroups[g];
     const cells=P.map(p=>ok?pct(g,p.days):null), all=ok?pct(g,allDays):null;
     aoa.push([t,n,k||"",...cells.map(x=>x?x.f:""),all?all.f:(g==null?"guruh yo'q":"")]);
@@ -641,7 +641,7 @@ $("zxls").onclick = () => {
   for(let R=4;R<=rg.e.r;R++) for(let C=3;C<=rg.e.c;C++){ const c=ws[XLSX.utils.encode_cell({r:R,c:C})]; if(c&&typeof c.v==="number") c.z="0%"; }
   ws["!cols"]=[{wch:10},{wch:20},{wch:11},...P.map(()=>({wch:12})),{wch:12}]; ws2["!cols"]=ws["!cols"];
   ws["!freeze"]={xSplit:3,ySplit:4};
-  const wb=XLSX.utils.book_new(); XLSX.utils.book_append_sheet(wb,ws,"Foizlar"); XLSX.utils.book_append_sheet(wb,ws2,"Nuqtalar");
+  const wb=XLSX.utils.book_new(); XLSX.utils.book_append_sheet(wb,ws,"Foizlar"); XLSX.utils.book_append_sheet(wb,ws2,"Geozonalar");
   XLSX.writeFile(wb,`MFY_tozalik_${MODE}_${toD(ZRANGE.from)}_${toD(ZRANGE.to)}.xlsx`);
 };
 
