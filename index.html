@@ -34,6 +34,21 @@ nav svg{width:16px;height:16px;fill:currentColor}
 .user button{background:none;border:1px solid #5b6d7f;color:#fff;margin-left:8px;border-radius:6px;padding:3px 8px}
 .bad{display:inline-block;font-size:11px;padding:1px 6px;border-radius:10px;margin:2px 2px 0 0}
 .b-red{background:#fadcdc;color:#9b2222}.b-yel{background:#fdf0c9;color:#7a5800}.b-ok{background:#d8f0e2;color:#13633a}
+.fl{display:flex;flex-direction:column;font-size:12px;color:var(--mut);gap:3px}
+.fl.in{flex-direction:row;align-items:center;gap:6px}
+.fl input{padding:7px 9px;border:1px solid var(--line);border-radius:8px;font:inherit;color:var(--txt);background:#fff}
+.quick{display:flex;flex-wrap:wrap;gap:4px}
+.quick button{background:#fff;border:1px solid var(--line);border-radius:14px;padding:3px 10px;font-size:12px;color:var(--txt)}
+.quick button:hover{border-color:var(--g);color:var(--g)}
+.stop{display:flex;gap:8px;padding:7px 12px;border-bottom:1px solid #f0f2f5;cursor:pointer;font-size:13px}
+.stop:hover{background:#f7faf8}
+.pic{width:20px;height:20px;border-radius:4px;background:#2f7fd8;color:#fff;font-weight:800;font-size:12px;display:flex;align-items:center;justify-content:center;flex:none;border:2px solid #fff;box-shadow:0 1px 3px rgba(0,0,0,.4)}
+.sh{padding:8px 12px;background:#fafbfc;border-bottom:1px solid var(--line);font-weight:700;font-size:12px;color:var(--mut);text-transform:uppercase}
+#ztable td.c{text-align:center;font-weight:700;min-width:54px;padding:6px 4px}
+#ztable th.c{text-align:center;white-space:nowrap;font-size:11px;padding:6px 4px}
+#ztable td.mf{cursor:pointer;color:var(--blue);white-space:nowrap}
+#ztable td.mf:hover{text-decoration:underline}
+.plan{box-shadow:inset 0 -3px 0 #2d3e50}
 .seg{display:flex;border:1px solid var(--line);border-radius:8px;overflow:hidden}
 .seg button{flex:1;background:#fff;border:0;padding:7px;color:var(--mut);font-weight:600}
 .seg button.on{background:var(--g2);color:var(--g)}
@@ -128,12 +143,13 @@ td.p{font-weight:700;text-align:center;width:80px}
     <div class="pane hidden" id="p-trk">
       <div class="ptop">
         <select id="tu"></select>
-        <input id="td" type="date">
-        <div style="display:flex;gap:6px"><input id="tf" type="time" value="00:00"><input id="tt" type="time" value="23:59"></div>
-        <button class="btn" id="tbtn">Trekni ko'rsatish</button>
-        <button class="btn sec" id="tclr">Tozalash</button>
+        <label class="fl">Dan<input id="tdf" type="datetime-local"></label>
+        <label class="fl">Gacha<input id="tdt" type="datetime-local"></label>
+        <div class="quick" id="tq"><button data-q="today">Bugun</button><button data-q="yday">Kecha</button><button data-q="week">Shu hafta</button></div>
+        <label class="fl">To'xtash (daq. dan ko'p)<input id="tmin" type="number" value="5" min="1" max="120"></label>
+        <div style="display:flex;gap:6px"><button class="btn" id="tbtn" style="flex:1">Trekni ko'rsatish</button><button class="btn sec" id="tclr">Tozalash</button></div>
       </div>
-      <div class="info" id="tinfo">Mashina va sanani tanlang.</div>
+      <div class="list"><div class="info" id="tinfo">Mashina va vaqtni tanlang.</div><div id="tstops"></div><div id="tzones"></div></div>
     </div>
     <!-- Geozonalar -->
     <div class="pane hidden" id="p-geo">
@@ -152,15 +168,21 @@ td.p{font-weight:700;text-align:center;width:80px}
 <section id="toz" class="hidden">
   <div class="tz-top">
     <b style="font-size:16px">MFY tozalik foizi</b>
-    <select id="wk"></select>
+    <label class="fl in">Dan<input id="zf" type="date"></label>
+    <label class="fl in">Gacha<input id="zt" type="date"></label>
+    <div class="seg" id="zmode"><button data-m="day">Kunlik</button><button data-m="week" class="on">Haftalik</button><button data-m="month">Oylik</button><button data-m="year">Yillik</button></div>
     <button class="btn" id="zbtn">Hisoblash</button>
-    <div class="prog"><i id="zbar"></i></div>
-    <span id="zst" style="color:var(--mut);font-size:13px"></span>
     <button class="btn sec" id="zback" style="margin-left:auto">Xaritaga qaytish</button>
   </div>
+  <div class="tz-top">
+    <div class="quick" id="zq"><button data-q="today">Bugun</button><button data-q="yday">Kecha</button><button data-q="week">Shu hafta</button><button data-q="lweek">O'tgan hafta</button><button data-q="month">Shu oy</button><button data-q="lmonth">O'tgan oy</button><button data-q="year">Shu yil</button></div>
+    <div class="prog"><i id="zbar"></i></div>
+    <span id="zst" style="color:var(--mut);font-size:13px"></span>
+  </div>
   <div class="kpis" id="kpis"></div>
-  <div style="color:var(--mut);font-size:12px;margin-bottom:8px">Foiz = hafta davomida istalgan mashina kirgan nuqtalar ÷ MFYdagi jami nuqtalar. Yashil ≥ 90%, sariq 60–89%, qizil &lt; 60%.</div>
-  <table><thead><tr><th>Texnika</th><th>MFY</th><th>Kunlari</th><th>Nuqtalar</th><th>Foiz</th><th></th></tr></thead><tbody id="ztb"></tbody></table>
+  <div id="znote"></div>
+  <div style="color:var(--mut);font-size:12px;margin-bottom:8px">Foiz = shu davrda istalgan mashina kirgan nuqtalar ÷ MFYdagi jami nuqtalar (MFY chegarasi hisobga olinmaydi). Yashil ≥ 90%, sariq 60–89%, qizil &lt; 60%. • – reja bo'yicha shu kun xizmat kuni. MFY nomini bosing – xaritada kirilgan (yashil) va kirilmagan (qizil) nuqtalar ko'rinadi.</div>
+  <div style="overflow:auto"><table id="ztable"></table></div>
 </section>
 </div>
 
@@ -253,9 +275,21 @@ let map, unitLayer, trackLayer, zoneLayer, markers = {};
 function initMap(){
   if(mapReady) return; mapReady = true;
   map = L.map("map",{zoomControl:true}).setView([40.79,72.29],13);
+  const esri = p => `https://server.arcgisonline.com/ArcGIS/rest/services/${p}/MapServer/tile/{z}/{y}/{x}`;
   const osm = L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png",{maxZoom:19,attribution:"© OpenStreetMap"});
-  const sat = L.tileLayer("https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}",{maxZoom:19,attribution:"© Esri"});
-  osm.addTo(map); L.control.layers({"Xarita":osm,"Sun'iy yo'ldosh":sat}).addTo(map);
+  const sat = L.tileLayer(esri("World_Imagery"),{maxZoom:19,attribution:"© Esri"});
+  // Gibrid = sun'iy yo'ldosh + yo'llar va joy nomlari
+  const hyb = L.layerGroup([L.tileLayer(esri("World_Imagery"),{maxZoom:19,attribution:"© Esri"}),
+    L.tileLayer(esri("Reference/World_Transportation"),{maxZoom:19}),
+    L.tileLayer(esri("Reference/World_Boundaries_and_Places"),{maxZoom:19})]);
+  const street = L.tileLayer(esri("World_Street_Map"),{maxZoom:19,attribution:"© Esri"});
+  const topo = L.tileLayer("https://{s}.tile.opentopomap.org/{z}/{x}/{y}.png",{maxZoom:17,attribution:"© OpenTopoMap"});
+  const light = L.tileLayer("https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png",{maxZoom:19,attribution:"© CARTO"});
+  const bases = {"Gibrid":hyb,"Sun'iy yo'ldosh":sat,"Xarita (OSM)":osm,"Ko'chalar":street,"Relyef":topo,"Oq xarita":light};
+  (bases[store.get("bte_base")]||osm).addTo(map);
+  L.control.layers(bases,null,{collapsed:window.innerWidth<1100}).addTo(map);
+  map.on("baselayerchange",e=>store.set("bte_base",e.name));
+  L.control.scale({imperial:false}).addTo(map);
   unitLayer = L.layerGroup().addTo(map); trackLayer = L.layerGroup().addTo(map); zoneLayer = L.layerGroup().addTo(map);
 }
 
@@ -293,31 +327,104 @@ $("q").oninput = drawUnits;
 $("ulist").onclick = e => { const r=e.target.closest(".row"); if(!r) return; selUnit=+r.dataset.id; const m=markers[selUnit]; if(m){ map.setView(m.getLatLng(),16); m.openPopup(); } drawUnits(); };
 
 /* ================= Treklar ================= */
+/* Vaqt yordamchilari (Toshkent) */
+const fmtS = t => { const d=tk(t); return `${pad(d.getUTCHours())}:${pad(d.getUTCMinutes())}:${pad(d.getUTCSeconds())}`; };
+const fmtDT = t => { const d=tk(t); return `${pad(d.getUTCDate())}.${pad(d.getUTCMonth()+1)}.${d.getUTCFullYear()} ${pad(d.getUTCHours())}:${pad(d.getUTCMinutes())}`; };
+const dur = s => { s=Math.max(0,Math.round(s)); const h=Math.floor(s/3600), m=Math.floor(s%3600/60); return h?`${h} soat ${m} daq`:`${m} daq`; };
+const dayStart = t => { const d=tk(t); return Date.UTC(d.getUTCFullYear(),d.getUTCMonth(),d.getUTCDate())/1000 - TZ; };
+const toDL = t => { const d=tk(t); return `${d.getUTCFullYear()}-${pad(d.getUTCMonth()+1)}-${pad(d.getUTCDate())}T${pad(d.getUTCHours())}:${pad(d.getUTCMinutes())}`; };
+const fromDL = v => { const [a,b]=v.split("T"); return tkTs(a,b||"00:00",0); };
+const toD = t => toDL(t).slice(0,10);
+const fromD = v => tkTs(v,"00:00",0);
+const weekStart = t => { const d0=dayStart(t); return d0-((tk(d0).getUTCDay()+6)%7)*86400; };
+function quickRange(q){
+  const n=NOW(), d0=dayStart(n);
+  switch(q){
+    case "today": return [d0, d0+86399];
+    case "yday": return [d0-86400, d0-1];
+    case "week": { const w=weekStart(n); return [w, w+7*86400-1]; }
+    case "lweek": { const w=weekStart(n)-7*86400; return [w, w+7*86400-1]; }
+    case "month": { const d=tk(n); const a=Date.UTC(d.getUTCFullYear(),d.getUTCMonth(),1)/1000-TZ; const b=Date.UTC(d.getUTCFullYear(),d.getUTCMonth()+1,1)/1000-TZ-1; return [a,b]; }
+    case "lmonth": { const d=tk(n); const a=Date.UTC(d.getUTCFullYear(),d.getUTCMonth()-1,1)/1000-TZ; const b=Date.UTC(d.getUTCFullYear(),d.getUTCMonth(),1)/1000-TZ-1; return [a,b]; }
+    case "year": { const d=tk(n); return [Date.UTC(d.getUTCFullYear(),0,1)/1000-TZ, Date.UTC(d.getUTCFullYear()+1,0,1)/1000-TZ-1]; }
+  }
+}
+
+/* ================= Treklar ================= */
 function initTrk(){
   $("tu").innerHTML = units.map(u=>`<option value="${u.id}">${esc(u.nm)}</option>`).join("");
-  const d=tk(NOW()); $("td").value = `${d.getUTCFullYear()}-${pad(d.getUTCMonth()+1)}-${pad(d.getUTCDate())}`;
+  const [a,b]=quickRange("today"); $("tdf").value=toDL(a); $("tdt").value=toDL(Math.min(b,NOW()));
 }
-window.openTrack = id => { setTab("trk"); $("tu").value=id; showTrack(); };
+$("tq").onclick = e => { const q=e.target.dataset.q; if(!q) return; const [a,b]=quickRange(q); $("tdf").value=toDL(a); $("tdt").value=toDL(Math.min(b,NOW())); };
+window.openTrack = (id,from,to) => { setTab("trk"); $("tu").value=id; if(from){ $("tdf").value=toDL(from); $("tdt").value=toDL(to); } showTrack(); };
+let stopMarkers = [];
 async function showTrack(){
-  const id=+$("tu").value, d=$("td").value; if(!id||!d) return;
-  const from = tkTs(d,$("tf").value,0);
-  const to = tkTs(d,$("tt").value,59);
-  $("tinfo").textContent="Yuklanmoqda..."; trackLayer.clearLayers();
+  const id=+$("tu").value; if(!id||!$("tdf").value||!$("tdt").value) return;
+  const from=fromDL($("tdf").value), to=fromDL($("tdt").value)+59;
+  if(to<=from){ $("tinfo").textContent="'Gacha' vaqti 'Dan' dan keyin bo'lishi kerak."; return; }
+  if(to-from>31*86400){ $("tinfo").textContent="Trek uchun eng ko'pi 31 kun tanlang."; return; }
+  $("tinfo").textContent="Yuklanmoqda..."; $("tstops").innerHTML=""; $("tzones").innerHTML=""; trackLayer.clearLayers();
   try{
-    const r = await api("messages/load_interval",{itemId:id,timeFrom:from,timeTo:to,flags:1,flagsMask:65281,loadCount:50000});
+    const r = await api("messages/load_interval",{itemId:id,timeFrom:from,timeTo:to,flags:1,flagsMask:65281,loadCount:200000});
     await api("messages/unload",{});
     const pts = (r.messages||[]).filter(m=>m.pos).map(m=>({ll:[m.pos.y,m.pos.x],t:m.t,s:m.pos.s}));
     if(!pts.length){ $("tinfo").textContent="Bu vaqt oralig'ida ma'lumot yo'q."; return; }
-    let km=0,maxs=0; for(let i=1;i<pts.length;i++){ const dd=hav(pts[i-1].ll,pts[i].ll); if(dd<5) km+=dd; maxs=Math.max(maxs,pts[i].s); }
-    for(let i=1;i<pts.length;i++){ const s=pts[i].s; L.polyline([pts[i-1].ll,pts[i].ll],{color:s>60?"#d64545":s>30?"#e5a50a":"#1b8a4b",weight:4,opacity:.85}).addTo(trackLayer); }
-    L.circleMarker(pts[0].ll,{radius:7,color:"#fff",weight:2,fillColor:"#2f7fd8",fillOpacity:1}).bindTooltip("Boshlanish "+fmtT(pts[0].t)).addTo(trackLayer);
-    L.circleMarker(pts.at(-1).ll,{radius:7,color:"#fff",weight:2,fillColor:"#d64545",fillOpacity:1}).bindTooltip("Tugash "+fmtT(pts.at(-1).t)).addTo(trackLayer);
+    // masofa, tezlik
+    let km=0,maxs=0,moveT=0; for(let i=1;i<pts.length;i++){ const dd=hav(pts[i-1].ll,pts[i].ll); if(dd<5) km+=dd; maxs=Math.max(maxs,pts[i].s); if(pts[i].s>3) moveT+=pts[i].t-pts[i-1].t; }
+    // trek: tezlik bo'yicha rangli, ustiga kursorni olib borsangiz vaqt va tezlik chiqadi
+    for(let i=1;i<pts.length;i++){ const s=pts[i].s;
+      L.polyline([pts[i-1].ll,pts[i].ll],{color:s>60?"#d64545":s>30?"#e5a50a":"#1b8a4b",weight:5,opacity:.9})
+        .bindTooltip(`${fmtS(pts[i].t)} · <b>${Math.round(s)} km/soat</b>`,{sticky:true}).addTo(trackLayer); }
+    // to'xtashlar (P)
+    const minS=Math.max(1,+$("tmin").value||5)*60, stops=[];
+    for(let i=0;i<pts.length;){
+      if(pts[i].s<=3){ let j=i; while(j+1<pts.length && pts[j+1].s<=3 && hav(pts[i].ll,pts[j+1].ll)<0.15) j++;
+        const end = j+1<pts.length ? pts[j+1].t : pts[j].t;
+        if(end-pts[i].t>=minS) stops.push({ll:pts[i].ll,a:pts[i].t,b:end}); i=j+1; }
+      else i++;
+    }
+    stopMarkers = stops.map((s,k)=>L.marker(s.ll,{icon:L.divIcon({className:"",html:`<div class="pic">P</div>`,iconSize:[20,20],iconAnchor:[10,10]})})
+      .bindPopup(`<b>To'xtash №${k+1}</b><br>Kelgan: ${fmtDT(s.a)}<br>Ketgan: ${fmtDT(s.b)}<br>Turgan vaqti: <b>${dur(s.b-s.a)}</b>`).addTo(trackLayer));
+    L.circleMarker(pts[0].ll,{radius:8,color:"#fff",weight:2,fillColor:"#2f7fd8",fillOpacity:1}).bindTooltip("Boshlanish "+fmtDT(pts[0].t)).addTo(trackLayer);
+    L.circleMarker(pts.at(-1).ll,{radius:8,color:"#fff",weight:2,fillColor:"#d64545",fillOpacity:1}).bindTooltip("Tugash "+fmtDT(pts.at(-1).t)).addTo(trackLayer);
     map.fitBounds(L.latLngBounds(pts.map(p=>p.ll)),{padding:[30,30]});
-    $("tinfo").innerHTML = `<b>${esc($("tu").selectedOptions[0].text)}</b><br>Yurgan masofa: <b>${km.toFixed(1)} km</b><br>Maksimal tezlik: <b>${Math.round(maxs)} km/soat</b><br>Nuqtalar: ${pts.length}<br>${fmtT(pts[0].t)} – ${fmtT(pts.at(-1).t)}<br><span style="font-size:12px">Yashil &lt;30, sariq 30–60, qizil &gt;60 km/soat</span>`;
+    const stopT=stops.reduce((a,s)=>a+s.b-s.a,0);
+    $("tinfo").innerHTML = `<b>${esc($("tu").selectedOptions[0].text)}</b><br>${fmtDT(pts[0].t)} – ${fmtDT(pts.at(-1).t)}<br>
+      Yurgan masofa: <b>${km.toFixed(1)} km</b><br>Maksimal tezlik: <b>${Math.round(maxs)} km/soat</b><br>
+      Harakatda: <b>${dur(moveT)}</b> · To'xtashlar: <b>${stops.length} ta (${dur(stopT)})</b><br>
+      <span style="font-size:12px">Trek ustiga kursorni olib boring – vaqt va tezlik chiqadi. Yashil &lt;30, sariq 30–60, qizil &gt;60 km/soat.</span>`;
+    $("tstops").innerHTML = stops.length ? `<div class="sh">To'xtashlar (P)</div>`+stops.map((s,k)=>`<div class="stop" data-k="${k}"><div class="pic">P</div><div>${fmtDT(s.a)} – ${fmtS(s.b)}<br><span style="color:var(--mut)">${dur(s.b-s.a)}</span></div></div>`).join("") : "";
+    trackZones(id,from,to);
   }catch(e){ $("tinfo").textContent="Xato: "+e.message; }
 }
+$("tstops").onclick = e => { const r=e.target.closest(".stop"); if(!r) return; const m=stopMarkers[+r.dataset.k]; map.setView(m.getLatLng(),17); m.openPopup(); };
+// Mashina qaysi MFY geozonalariga kirganini ko'rsatadi
+async function trackZones(id,from,to){
+  const mfy=Object.values(zoneGroups).filter(isMfy); if(!mfy.length) return;
+  $("tzones").innerHTML=`<div class="sh">Kirgan geozonalar</div><div class="info">Hisoblanmoqda...</div>`;
+  try{
+    const tpl={id:0,n:"tz",ct:"avl_unit",p:"",tbl:[{n:"unit_zones_visit",l:"v",c:"zone_name,time_begin,time_end,duration_in",cl:"Z,B,E,D",s:"",sl:"",
+      p:JSON.stringify({geozones:mfy.map(g=>`gr${RES_ID}_${g.id}`).join(",")+","}),sch:{f1:0,f2:0,t1:0,t2:0,m:0,y:0,w:0,fl:0},f:0}]};
+    const r=await api("report/exec_report",{reportResourceId:RES_ID,reportTemplateId:0,reportTemplate:tpl,reportObjectId:id,reportObjectSecId:0,interval:{from,to,flags:0}});
+    const t=(r.reportResult||r).tables[0]; let rows=[];
+    if(t&&t.rows) rows=await api("report/select_result_rows",{tableIndex:0,config:{type:"range",data:{from:0,to:t.rows-1,level:0}}});
+    await api("report/cleanup_result",{});
+    // har bir kirishni MFYga bog'lash (kirish nuqtasi qaysi MFY chegarasida)
+    const by={};
+    rows.forEach(x=>{ const c=x.c, b=c[1]; if(!b||!b.v) return; const pt=[b.x,b.y];
+      const g=mfyOfPoint(pt,c[0]); if(!g) return; const o=by[g.id]||(by[g.id]={g,names:new Set(),a:b.v,b:0}); o.names.add(c[0]); o.a=Math.min(o.a,b.v); o.b=Math.max(o.b,(c[2]&&c[2].v)||b.v); });
+    const list=Object.values(by).sort((x,y)=>x.a-y.a);
+    $("tzones").innerHTML=`<div class="sh">Kirgan geozonalar (${list.length} ta MFY)</div>`+(list.length?list.map(o=>{const a=AUD[o.g.id];const tot=a?a.pts:o.g.zns.length;const n=[...o.names].filter(x=>!/МФЙ/.test(x)).length;
+      return `<div class="stop" onclick="toMap(${o.g.id})"><div style="flex:1"><b>${esc(cleanName(o.g.n))}</b><br><span style="color:var(--mut)">${fmtDT(o.a)} – ${fmtS(o.b)}</span></div><div class="rt">${n} / ${tot}<br>nuqta</div></div>`}).join(""):`<div class="info">MFY geozonalariga kirmagan.</div>`);
+  }catch(e){ $("tzones").innerHTML=`<div class="info">Geozonalarni hisoblab bo'lmadi: ${esc(e.message)}</div>`; }
+}
+function mfyOfPoint(pt,name){
+  const mfy=Object.values(zoneGroups).filter(isMfy);
+  for(const g of mfy){ const a=AUD[g.id]; if(a&&a.bnd&&ZD[a.bnd]&&pip(pt,ZD[a.bnd].p.map(q=>[q.x,q.y]))) return g; }
+  return mfy.find(g=>g.n.includes(name))||null;
+}
 $("tbtn").onclick = showTrack;
-$("tclr").onclick = () => { trackLayer.clearLayers(); $("tinfo").textContent="Mashina va sanani tanlang."; };
+$("tclr").onclick = () => { trackLayer.clearLayers(); $("tinfo").textContent="Mashina va vaqtni tanlang."; $("tstops").innerHTML=""; $("tzones").innerHTML=""; };
 
 /* ================= Geozonalar ================= */
 /* Geozonalar: Wialondagi kamchiliklar shu yerda tekshiriladi va to'g'rilangan ko'rinishda chiqadi:
@@ -385,7 +492,7 @@ function drawGroups(){
 document.querySelectorAll("[data-gf]").forEach(b=>b.onclick=()=>{gFilter=b.dataset.gf;document.querySelectorAll("[data-gf]").forEach(x=>x.classList.toggle("on",x===b));drawGroups();});
 $("gq").oninput = drawGroups;
 $("glist").onclick = e => { const r=e.target.closest(".row"); if(r) showGroup(+r.dataset.g); };
-async function showGroup(gid){
+async function showGroup(gid,vis,lab){
   const g = zoneGroups[gid]; if(!g) return;
   $("ginfo").textContent="Yuklanmoqda..."; zoneLayer.clearLayers();
   document.querySelectorAll("#glist .row").forEach(r=>r.classList.toggle("sel",+r.dataset.g===gid));
@@ -397,16 +504,23 @@ async function showGroup(gid){
     zs.forEach(z=>{
       const ll=(z.p||[]).map(p=>[p.y,p.x]); if(!ll.length) return; all.push(...ll);
       const bad=outIds.has(z.id), dup=dupIds.has(z.id);
-      const col=bad?"#d64545":dup?"#e5a50a":z.id===a.bnd?"#2f7fd8":"#1b8a4b";
+      const col = z.id===a.bnd ? "#2f7fd8" : vis ? (vis.has(z.id)?"#1b8a4b":"#d64545") : bad?"#d64545":dup?"#e5a50a":"#1b8a4b";
       let lay;
       if(z.id===a.bnd||z.t===2) lay=L.polygon(ll,{color:col,weight:2,fillOpacity:z.id===a.bnd?.06:.2,dashArray:z.id===a.bnd?"6 4":null});
       else if(z.t===3) lay=L.circle(ll[0],{radius:z.p[0].r||z.w||20,color:col,weight:2,fillOpacity:.4});
       else lay=L.polyline(ll,{color:col,weight:6,opacity:.9});
       const o=a.out.find(x=>x.id===z.id);
-      lay.bindTooltip(z.id===a.bnd?"MFY chegarasi":`№ ${esc(z.n)}${bad?" · chegaradan tashqarida"+(o.to?" ("+esc(o.to)+" hududida)":""):""}${dup?" · takror nom":""}`).addTo(zoneLayer);
+      lay.bindTooltip(z.id===a.bnd?"MFY chegarasi":`№ ${esc(z.n)}${vis?(vis.has(z.id)?" · kirilgan":" · KIRILMAGAN"):""}${bad?" · chegaradan tashqarida"+(o.to?" ("+esc(o.to)+" hududida)":""):""}${dup?" · takror nom":""}`).addTo(zoneLayer);
     });
     if(all.length) map.fitBounds(L.latLngBounds(all),{padding:[30,30]});
     let h=`<b>${esc(cleanName(g.n))}</b>: ${a.pts??zs.length} ta nuqta${a.bnd?" + chegara":""}`;
+    if(vis){
+      const tot=a.pts||zs.length; h+=`<br>${esc(lab)}<br>Kirilgan: <b style="color:#13633a">${vis.size}</b> · Kirilmagan: <b style="color:#9b2222">${tot-vis.size}</b> · <b>${Math.round(100*vis.size/tot)}%</b>`;
+      const plan=REJA.find(([t,ms])=>ms.some(m=>m[2]===gid)); const u=plan&&units.find(x=>raqam(x.nm)===plan[0]);
+      if(u&&ZRANGE) h+=`<br><button class="tbtn" style="margin-top:6px" onclick="openTrack(${u.id},${ZRANGE.from},${ZRANGE.to})">${esc(plan[0])} trekini ko'rsatish</button>`;
+      h+=`<br><span style="font-size:12px">Yashil – kirilgan, qizil – kirilmagan, ko'k punktir – MFY chegarasi</span>`;
+      $("ginfo").innerHTML=h; return;
+    }
     if(a.out&&a.out.length) h+=`<br><b style="color:#9b2222">Chegaradan tashqarida:</b> `+a.out.map(o=>"№"+esc(o.n)+(o.to?" → "+esc(o.to):"")).join(", ");
     if(a.dup&&a.dup.length) h+=`<br><b style="color:#7a5800">Takror nomli:</b> `+a.dup.map(i=>"№"+esc(ZD[i].n)).join(", ");
     h+=`<br><span style="font-size:12px">Yashil – to'g'ri, qizil – tashqarida, sariq – takror nom, ko'k punktir – chegara</span>`;
@@ -414,59 +528,92 @@ async function showGroup(gid){
   }catch(e){ $("ginfo").textContent="Xato: "+e.message; }
 }
 
-/* ================= MFY tozalik ================= */
-function initWeeks(){
-  // Toshkent bo'yicha joriy haftaning dushanbasi 00:00 (unix soniya)
-  const n=tk(NOW()); const day0=Date.UTC(n.getUTCFullYear(),n.getUTCMonth(),n.getUTCDate())/1000 - TZ;
-  const mon=day0-((n.getUTCDay()+6)%7)*86400; let h="";
-  for(let i=0;i<8;i++){ const a=mon-7*i*86400, b=a+6*86400; const A=tk(a), B=tk(b);
-    h+=`<option value="${a}">${pad(A.getUTCDate())}.${pad(A.getUTCMonth()+1)} – ${pad(B.getUTCDate())}.${pad(B.getUTCMonth()+1)}${i===0?" (joriy hafta)":""}</option>`; }
-  $("wk").innerHTML=h;
+/* ================= MFY tozalik =================
+   Har bir MFY uchun bitta hisobot: tanlangan oraliqda kunlar bo'yicha qaysi nuqtalarga kirilgani.
+   Keyin kunlik / haftalik / oylik / yillik foizlar shu kunlik ma'lumotdan yig'iladi. */
+let zMode="week", ZRES={}, ZRANGE=null, ztRunning=false;
+const OY=["Yan","Fev","Mar","Apr","May","Iyun","Iyul","Avg","Sen","Okt","Noy","Dek"];
+function initWeeks(){ const [a,b]=quickRange("week"); $("zf").value=toD(a); $("zt").value=toD(b); }
+$("zq").onclick = e => { const q=e.target.dataset.q; if(!q) return; const [a,b]=quickRange(q); $("zf").value=toD(a); $("zt").value=toD(b);
+  zMode = ["today","yday","week","lweek"].includes(q) ? "day" : q==="year" ? "month" : "week"; setModeBtn(); calcToz(); };
+function setModeBtn(){ document.querySelectorAll("#zmode button").forEach(b=>b.classList.toggle("on",b.dataset.m===zMode)); }
+$("zmode").onclick = e => { const m=e.target.dataset.m; if(!m) return; zMode=m; setModeBtn(); if(ZRANGE) renderToz(); };
+
+function zoneIdByName(gid,name,pt){
+  const g=zoneGroups[gid]; if(!g) return null;
+  const c=g.zns.filter(i=>ZD[i]&&ZD[i].n===name); if(!c.length) return null; if(c.length===1||!pt) return c[0];
+  let best=c[0],bd=1e9; c.forEach(i=>{const q=cen(ZD[i]);const d=(q[0]-pt[0])**2+(q[1]-pt[1])**2;if(d<bd){bd=d;best=i}}); return best;
 }
-async function visited(gid,from,to){
-  const tpl={id:0,n:"mfy",ct:"avl_unit_group",p:"",tbl:[{n:"unit_group_zones_visit",l:"v",c:"zone_name,time_begin,visits_count",cl:"Z,T,V",s:"",sl:"",
-    p:JSON.stringify({grouping:'{"type":"geozone"}',geozones:`gr${RES_ID}_${gid},`}),sch:{f1:0,f2:0,t1:0,t2:0,m:0,y:0,w:0,fl:0},f:0}]};
-  const r = await api("report/exec_report",{reportResourceId:RES_ID,reportTemplateId:0,reportTemplate:tpl,reportObjectId:GROUP_ID,reportObjectSecId:0,interval:{from,to,flags:0}});
-  const res = r.reportResult || r;
-  const n = res.tables && res.tables.length ? res.tables[0].rows : 0;
-  await api("report/cleanup_result",{});
-  return n;
-}
-let ztRunning=false;
-async function calcToz(){
-  if(ztRunning) return; ztRunning=true; $("zbtn").disabled=true;
-  const from=+$("wk").value, to=Math.min(from+7*86400-1, NOW());
-  const rows=[]; REJA.forEach(([t,ms])=>ms.forEach(([n,k,g])=>rows.push({t,n,k,g})));
-  let done=0; $("ztb").innerHTML=""; $("kpis").innerHTML="";
-  for(const r of rows){
-    const grp=zoneGroups[r.g];
-    if(r.g==null||!grp){ r.izoh="Geozona guruhi yo'q"; }
-    else{
-      // MFY chegarasi (poligon) nuqta emas - uni sanoqdan chiqaramiz
-      const a=AUD[r.g], hasB=a?!!a.bnd:false;
-      r.jami=a?a.pts:grp.zns.length;
-      try{ let n=await visited(r.g,from,to); if(hasB&&n>0) n--; r.kir=Math.min(n,r.jami); r.f=r.jami?r.kir/r.jami:0; }catch(e){ r.izoh="Xato"; }
-    }
-    done++; $("zbar").style.width=(100*done/rows.length)+"%"; $("zst").textContent=`${done} / ${rows.length}`;
-    renderToz(rows.slice(0,done));
+async function dayVisits(gid,from,to){
+  const tpl={id:0,n:"mfy",ct:"avl_unit_group",p:"",tbl:[{n:"unit_group_zones_visit",l:"v",c:"zone_name,time_begin",cl:"Z,B",s:"",sl:"",
+    p:JSON.stringify({grouping:'{"type":"day","nested":{"type":"geozone"}}',geozones:`gr${RES_ID}_${gid},`}),sch:{f1:0,f2:0,t1:0,t2:0,m:0,y:0,w:0,fl:0},f:16}]};
+  const r=await api("report/exec_report",{reportResourceId:RES_ID,reportTemplateId:0,reportTemplate:tpl,reportObjectId:GROUP_ID,reportObjectSecId:0,interval:{from,to,flags:0}});
+  const t=(r.reportResult||r).tables; const out={};
+  if(t&&t.length&&t[0].rows){
+    const rows=await api("report/select_result_rows",{tableIndex:0,config:{type:"range",data:{from:0,to:t[0].rows-1,level:1}}});
+    const bnd=AUD[gid]&&AUD[gid].bnd;
+    rows.forEach(d=>{ const key=String(d.c[0]); if(!/^\d{4}-\d{2}-\d{2}$/.test(key)) return; const s=out[key]=new Set();
+      (d.r||[]).forEach(z=>{ const b=z.c[2]; const id=zoneIdByName(gid,String(z.c[0]),b&&b.x?[b.x,b.y]:null); if(id!=null&&id!==bnd) s.add(id); }); });
   }
-  $("zst").textContent="Tayyor · "+fmtT(NOW()); ztRunning=false; $("zbtn").disabled=false;
+  await api("report/cleanup_result",{});
+  return out;
 }
-function renderToz(rows){
-  const ok=rows.filter(r=>r.f!=null);
-  const avg=ok.length?ok.reduce((s,r)=>s+r.f,0)/ok.length:0;
+async function calcToz(){
+  if(ztRunning) return;
+  if(!Object.keys(AUD).length){ $("zst").textContent="Geozonalar hali yuklanmoqda, biroz kuting..."; return; }
+  const from=fromD($("zf").value), to=Math.min(fromD($("zt").value)+86399, NOW());
+  if(!(to>from)){ $("zst").textContent="Sanalarni to'g'ri tanlang."; return; }
+  ztRunning=true; $("zbtn").disabled=true; ZRES={}; ZRANGE={from,to};
+  const list=[]; REJA.forEach(([t,ms])=>ms.forEach(([n,k,g])=>{ if(g!=null&&zoneGroups[g]) list.push(g); }));
+  let done=0;
+  for(const g of list){
+    try{ ZRES[g]=await dayVisits(g,from,to); }catch(e){ ZRES[g]={err:e.message}; }
+    done++; $("zbar").style.width=(100*done/list.length)+"%"; $("zst").textContent=`Hisoblanmoqda: ${done} / ${list.length}`;
+    if(done%5===0||done===list.length) renderToz();
+  }
+  $("zst").textContent=`Tayyor · ${fmtDT(from)} – ${fmtDT(to)}`; ztRunning=false; $("zbtn").disabled=false;
+}
+function periods(){
+  const {from,to}=ZRANGE; const P=[]; const keyOf=t=>toD(t);
+  if(zMode==="day"){ for(let t=from;t<=to;t+=86400) P.push({lab:`${pad(tk(t).getUTCDate())}.${pad(tk(t).getUTCMonth()+1)}`,sub:["Du","Se","Ch","Pa","Ju","Sh","Ya"][(tk(t).getUTCDay()+6)%7],days:[keyOf(t)],dow:(tk(t).getUTCDay()+6)%7}); }
+  else if(zMode==="week"){ for(let w=weekStart(from);w<=to;w+=7*86400){ const days=[]; for(let t=Math.max(w,from);t<Math.min(w+7*86400,to+1);t+=86400) days.push(keyOf(t)); const e=w+6*86400;
+      P.push({lab:`${pad(tk(w).getUTCDate())}.${pad(tk(w).getUTCMonth()+1)}–${pad(tk(e).getUTCDate())}.${pad(tk(e).getUTCMonth()+1)}`,days}); } }
+  else { const m={}; for(let t=from;t<=to;t+=86400){ const d=tk(t); const k=zMode==="month"?`${OY[d.getUTCMonth()]} ${d.getUTCFullYear()}`:String(d.getUTCFullYear()); (m[k]=m[k]||[]).push(keyOf(t)); }
+    Object.entries(m).forEach(([lab,days])=>P.push({lab,days})); }
+  return P;
+}
+function pct(g,days){ const R=ZRES[g]; if(!R||R.err) return null; const a=AUD[g]; const tot=a?a.pts:zoneGroups[g].zns.length; if(!tot) return null;
+  const s=new Set(); days.forEach(d=>R[d]&&R[d].forEach(i=>s.add(i))); return {f:s.size/tot,n:s.size,tot,set:s}; }
+const cls = f => f==null?"":f>=.9?"pg":f>=.6?"py":"pr";
+function renderToz(){
+  if(!ZRANGE) return;
+  let P=periods(); let note="";
+  if(P.length>62){ note=`<div style="color:#9b2222;font-size:12px;margin:6px 0">Ustunlar juda ko'p (${P.length}). Haftalik yoki oylik ko'rinishni tanlang.</div>`; P=P.slice(0,62); }
+  const allDays=[]; for(let t=ZRANGE.from;t<=ZRANGE.to;t+=86400) allDays.push(toD(t));
+  const rows=[]; REJA.forEach(([t,ms])=>ms.forEach(([n,k,g])=>rows.push({t,n,k,g})));
+  const tot=rows.map(r=>r.g!=null&&zoneGroups[r.g]?pct(r.g,allDays):null).filter(Boolean);
+  const avg=tot.length?tot.reduce((s,x)=>s+x.f,0)/tot.length:0;
   $("kpis").innerHTML=`
-    <div class="kpi"><span>O'rtacha tozalik</span><b>${Math.round(avg*100)}%</b></div>
-    <div class="kpi"><span>90% va yuqori</span><b style="color:#13633a">${ok.filter(r=>r.f>=.9).length}</b></div>
-    <div class="kpi"><span>60–89%</span><b style="color:#7a5800">${ok.filter(r=>r.f>=.6&&r.f<.9).length}</b></div>
-    <div class="kpi"><span>60% dan past</span><b style="color:#9b2222">${ok.filter(r=>r.f<.6).length}</b></div>`;
+    <div class="kpi"><span>O'rtacha tozalik (butun davr)</span><b>${Math.round(avg*100)}%</b></div>
+    <div class="kpi"><span>90% va yuqori</span><b style="color:#13633a">${tot.filter(x=>x.f>=.9).length}</b></div>
+    <div class="kpi"><span>60–89%</span><b style="color:#7a5800">${tot.filter(x=>x.f>=.6&&x.f<.9).length}</b></div>
+    <div class="kpi"><span>60% dan past</span><b style="color:#9b2222">${tot.filter(x=>x.f<.6).length}</b></div>`;
+  let h=`<thead><tr><th>Texnika</th><th>MFY</th><th>Kunlari</th>${P.map(p=>`<th class="c">${esc(p.lab)}${p.sub?"<br>"+p.sub:""}</th>`).join("")}<th class="c">Butun davr</th></tr></thead><tbody>`;
   let last=null;
-  $("ztb").innerHTML=rows.map(r=>{ const cls=r.f==null?"":r.f>=.9?"pg":r.f>=.6?"py":"pr"; const first=r.t!==last; last=r.t;
-    return `<tr><td>${first?"<b>"+esc(r.t)+"</b>":""}</td><td>${esc(r.n)}</td><td>${esc(r.k||"—")}</td><td>${r.jami!=null?r.kir+" / "+r.jami:"—"}</td>
-      <td class="p ${cls}">${r.f!=null?Math.round(r.f*100)+"%":esc(r.izoh||"")}</td>
-      <td>${r.g!=null?`<button class="tbtn" onclick="toMap(${r.g})">Xaritada</button>`:""}</td></tr>`; }).join("");
+  rows.forEach(r=>{ const first=r.t!==last; last=r.t; const ok=r.g!=null&&zoneGroups[r.g]; const plan=kunlar(r.k);
+    h+=`<tr><td>${first?"<b>"+esc(r.t)+"</b>":""}</td><td class="${ok?"mf":""}" ${ok?`onclick="toMap(${r.g},true)"`:""}>${esc(r.n)}</td><td>${esc(r.k||"—")}</td>`;
+    P.forEach(p=>{ const x=ok?pct(r.g,p.days):null; const pl=p.dow!=null&&plan.has(p.dow)?" plan":"";
+      h+=`<td class="c ${cls(x&&x.f)}${pl}" title="${x?x.n+" / "+x.tot+" nuqta":""}">${x?Math.round(x.f*100)+"%":(ok&&ZRES[r.g]?"—":"")}</td>`; });
+    const all=ok?pct(r.g,allDays):null;
+    h+=`<td class="c ${cls(all&&all.f)}" title="${all?all.n+" / "+all.tot+" nuqta":""}">${all?Math.round(all.f*100)+"%":(r.g==null?"guruh yo'q":"")}</td></tr>`; });
+  $("ztable").innerHTML=h+"</tbody>";
+  $("znote").innerHTML=note;
 }
-window.toMap = g => { setTab("geo"); showGroup(g); };
+// MFY ni xaritada ko'rsatish: tanlangan davrda kirilgan (yashil) va kirilmagan (qizil) nuqtalar
+window.toMap = (g,useRange) => { setTab("geo");
+  let vis=null, lab="";
+  if(useRange&&ZRANGE&&ZRES[g]&&!ZRES[g].err){ const days=[]; for(let t=ZRANGE.from;t<=ZRANGE.to;t+=86400) days.push(toD(t)); vis=pct(g,days).set; lab=`${fmtDT(ZRANGE.from)} – ${fmtDT(ZRANGE.to)}`; }
+  showGroup(g,vis,lab); };
 $("zbtn").onclick = calcToz;
 $("zback").onclick = () => setTab("mon");
 
