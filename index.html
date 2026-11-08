@@ -56,6 +56,12 @@ nav svg{width:16px;height:16px;fill:currentColor}
 #ztable td.mf{cursor:pointer;color:var(--blue);white-space:nowrap}
 #ztable td.mf:hover{text-decoration:underline}
 .plan{box-shadow:inset 0 -3px 0 #2d3e50}
+#ztable{border-collapse:collapse}
+#ztable tr.gs td{border-top:3px solid #2d3e50}
+#ztable tr.ge td{border-bottom:3px solid #2d3e50}
+#ztable td.tx{border-top:3px solid #2d3e50;border-bottom:3px solid #2d3e50;border-right:2px solid #2d3e50;background:#eef3f7;vertical-align:middle;text-align:center;white-space:nowrap;font-size:14px}
+#ztable td.tx span{font-size:11px;color:var(--mut);font-weight:400}
+#ztable tr.godd td:not(.c):not(.tx){background:#fbfcfd}
 .seg{display:flex;border:1px solid var(--line);border-radius:8px;overflow:hidden}
 .seg button{flex:1;background:#fff;border:0;padding:7px;color:var(--mut);font-weight:600}
 .seg button.on{background:var(--g2);color:var(--g)}
@@ -607,9 +613,12 @@ function renderToz(){
     <div class="kpi"><span>60–89%</span><b style="color:#7a5800">${tot.filter(x=>x.f>=.6&&x.f<.9).length}</b></div>
     <div class="kpi"><span>60% dan past</span><b style="color:#9b2222">${tot.filter(x=>x.f<.6).length}</b></div>`;
   let h=`<thead><tr><th>Texnika</th><th>MFY</th><th>Kunlari</th>${P.map(p=>`<th class="c">${esc(p.lab)}${p.sub?"<br>"+p.sub:""}</th>`).join("")}<th class="c">Butun davr</th></tr></thead><tbody>`;
-  let last=null;
-  rows.forEach(r=>{ const first=r.t!==last; last=r.t; const ok=r.g!=null&&zoneGroups[r.g]; const plan=kunlar(r.k);
-    h+=`<tr><td>${first?"<b>"+esc(r.t)+"</b>":""}</td><td class="${ok?"mf":""}" ${ok?`onclick="toMap(${r.g},true)"`:""}>${esc(r.n)}</td><td>${esc(r.k||"—")}</td>`;
+  // Har bir mashina o'z MFYlari bilan bitta blok: tepada va pastda qalin chiziq, mashina raqami birlashtirilgan katakda
+  const cnt={}; rows.forEach(r=>cnt[r.t]=(cnt[r.t]||0)+1);
+  let last=null, gi=0;
+  rows.forEach((r,i)=>{ const first=r.t!==last; if(first) gi++; last=r.t; const ok=r.g!=null&&zoneGroups[r.g]; const plan=kunlar(r.k);
+    const lastRow = i===rows.length-1 || rows[i+1].t!==r.t;
+    h+=`<tr class="${first?"gs":""} ${lastRow?"ge":""} ${gi%2?"godd":""}">${first?`<td class="tx" rowspan="${cnt[r.t]}"><b>${esc(r.t)}</b><br><span>${cnt[r.t]} ta MFY</span></td>`:""}<td class="${ok?"mf":""}" ${ok?`onclick="toMap(${r.g},true)"`:""}>${esc(r.n)}</td><td>${esc(r.k||"—")}</td>`;
     P.forEach(p=>{ const x=ok?pct(r.g,p.days):null; const pl=p.dow!=null&&plan.has(p.dow)?" plan":"";
       h+=`<td class="c ${cls(x&&x.f)}${pl}" title="${x?x.n+" / "+x.tot+" geozona":""}">${x?Math.round(x.f*100)+"%":(ok&&ZRES[r.g]?"—":"")}</td>`; });
     const all=ok?pct(r.g,allDays):null;
