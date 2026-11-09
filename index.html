@@ -268,10 +268,15 @@ const REJA = [
  ["614 XAA",[["Qipchoq","D",10],["Oq tumor","S",6],["Andijon","CH,P",57],["Qo`shtepa Saroy","J",37],["Shayx Islom","SH",8]]],
  ["396 JBA",[["Mirobod","D,SH",16],["Maslaxat Ittifoq","CH",50],["Gulbog` Ittifoq","P,J",13],["Ayronchi","J,SH",18]]],
  ["485 OAA",[["Cho`ntak","D,S,CH",44],["Intizom","P",62],["Qashqar","J",53],["Kottej 2016","Y",69]]],
- ["824 OBA",[["Markaz","DU-SHA",29],["O`zbekiston ko`cha","DU-SHA",null]]],
+ ["824 OBA",[["Markaz","DU-SHA",29],["O`zbekiston ko`cha","DU-SHA","KOCHA"]]],
  ["156 VAA",[["Qo`shtepa","",48],["Erkin","",46]]],
  ["162 VAA",[["Qoraqalpoq","",11],["Namuna","",33],["Ittifoq","",23]]]
 ];
+/* O`zbekiston ko`chasi – MFY emas, markaziy ko'cha (Saroy-2 – Markaz – Ittifoq). O'q chizig'i 824 OBA treki bo'yicha olingan [lon, lat].
+Ko'cha 8 ta bo'lakka (geozona) bo'linadi, har bo'lak 25 metrli nuqtalarga. Foiz = 1-tomon (sharqqa) 50% + 2-tomon (g'arbga) 50%:
+borib-kelsa 100%, faqat bir tomonga yursa 50%. */
+const KOCHA_TEX = "824 OBA", KOCHA_PARTS = 8, KOCHA_STEP = 25, KOCHA_R = 30;
+const KOCHA_LINE = [[72.1420,40.80166],[72.1500,40.80158],[72.1550,40.80158],[72.1580,40.80137],[72.1590,40.80106],[72.1610,40.80080],[72.1630,40.80045],[72.1650,40.80011],[72.1660,40.79972],[72.1680,40.79958],[72.1700,40.79937],[72.1717,40.79904],[72.1737,40.79844],[72.1757,40.79809],[72.1787,40.79736],[72.1817,40.79666],[72.1847,40.79614],[72.1857,40.79600]];
 
 /* ================= Logo ================= */
 function logo(size){
@@ -792,7 +797,8 @@ async function calcToz(){
   if(!Object.keys(AUD).length){ $("zst").textContent="Geozonalar hali yuklanmoqda, biroz kuting..."; return; }
   const from=fromD($("zf").value), to=Math.min(fromD($("zt").value)+86399, NOW());
   if(!(to>from)){ $("zst").textContent="Sanalarni to'g'ri tanlang."; return; }
-  ztRunning=true; $("zbtn").disabled=true; ZRES={}; ZRANGE={from,to};
+  ztRunning=true; $("zbtn").disabled=true; ZRES={}; KRES=null; ZRANGE={from,to};
+if(to-from<=31*86400&&zMode!=="day"){ zMode="day"; setModeBtn(); } // 31 kungacha – har bir kun alohida ustun
   const list=[]; REJA.forEach(([t,ms])=>ms.forEach(([n,k,g])=>{ if(g!=null&&zoneGroups[g]) list.push(g); }));
   let done=0;
   for(const g of list){
@@ -800,8 +806,38 @@ async function calcToz(){
     done++; $("zbar").style.width=(100*done/list.length)+"%"; $("zst").textContent=`Hisoblanmoqda: ${done} / ${list.length}`;
     if(done%5===0||done===list.length) renderToz();
   }
-  $("zst").textContent=`Tayyor · ${fmtDT(from)} – ${fmtDT(to)}`; ztRunning=false; $("zbtn").disabled=false; $("zxls").disabled=false;
+  $("zst").textContent="Oʻzbekiston koʻcha hisoblanmoqda...";
+try{ const u=units.find(x=>raqam(x.nm)===KOCHA_TEX); if(!u) throw new Error(KOCHA_TEX+" topilmadi");
+const r=await api("messages/load_interval",{itemId:u.id,timeFrom:from,timeTo:to,flags:1,flagsMask:65281,loadCount:300000}); await api("messages/unload",{});
+KRES=kochaCover((r.messages||[]).filter(m=>m.pos).map(m=>({ll:[m.pos.y,m.pos.x],t:m.t,s:m.pos.s}))); }catch(e){ KRES={err:e.message}; }
+renderToz();
+$("zst").textContent=`Tayyor · ${fmtDT(from)} – ${fmtDT(to)}`; ztRunning=false; $("zbtn").disabled=false; $("zxls").disabled=false;
 }
+/* ---- O'zbekiston ko'cha: nuqtalar, trek bo'yicha qamrov (tomonlar bilan) ---- */
+let KRES=null, KS=null;
+const brg=(a,b)=>{const dx=(b[1]-a[1])*Math.cos(a[0]*Math.PI/180),dy=b[0]-a[0];return (Math.atan2(dx,dy)*180/Math.PI+360)%360;};
+const angD=(x,y)=>{const d=Math.abs(x-y)%360;return d>180?360-d:d;};
+function kochaSamples(){ if(KS) return KS; const S=[], P=KOCHA_LINE.map(p=>[p[1],p[0]]), seg=[]; let L=0;
+for(let i=1;i<P.length;i++){ const d=hav(P[i-1],P[i])*1000; seg.push(d); L+=d; }
+let acc=0; for(let i=1;i<P.length;i++){ const a=P[i-1], b=P[i], d=seg[i-1], n=Math.max(1,Math.ceil(d/KOCHA_STEP)), br=brg(a,b);
+for(let k=0;k<n;k++){ const t=(k+.5)/n; S.push({lat:a[0]+(b[0]-a[0])*t, lon:a[1]+(b[1]-a[1])*t, brg:br, part:Math.min(KOCHA_PARTS,1+Math.floor((acc+d*t)/L*KOCHA_PARTS))}); } acc+=d; }
+return KS=S; }
+function kochaCover(pts){ const S=kochaSamples(), out={}, dl=KOCHA_R/111000, m=.001;
+const A0=Math.min(...S.map(s=>s.lat))-m, A1=Math.max(...S.map(s=>s.lat))+m, O0=Math.min(...S.map(s=>s.lon))-m, O1=Math.max(...S.map(s=>s.lon))+m;
+const mark=(lat,lon,br,t)=>{ if(lat<A0||lat>A1||lon<O0||lon>O1) return;
+for(let j=0;j<S.length;j++){ const s=S[j]; if(Math.abs(lat-s.lat)>dl||Math.abs(lon-s.lon)>dl*1.5) continue; if(hav([lat,lon],[s.lat,s.lon])*1000>KOCHA_R) continue;
+const k=toD(t), o=out[k]||(out[k]={f:new Set(),b:new Set()}), ad=angD(br,s.brg); if(ad<=60) o.f.add(j); else if(ad>=120) o.b.add(j); } };
+for(let i=1;i<pts.length;i++){ const p=pts[i-1], q=pts[i], dt=q.t-p.t; if(dt<=0||dt>180) continue; const d=hav(p.ll,q.ll)*1000; if(d<3||d>1500) continue;
+const br=brg(p.ll,q.ll), n=Math.ceil(d/10); for(let k=0;k<=n;k++) mark(p.ll[0]+(q.ll[0]-p.ll[0])*k/n, p.ll[1]+(q.ll[1]-p.ll[1])*k/n, br, Math.round(p.t+dt*k/n)); }
+return out; }
+function kochaUnion(days){ const U={f:new Set(),b:new Set()}; if(KRES&&!KRES.err) days.forEach(d=>{ const o=KRES[d]; if(o){ o.f.forEach(j=>U.f.add(j)); o.b.forEach(j=>U.b.add(j)); } }); return U; }
+function kochaPct(days){ if(!KRES||KRES.err) return null; const N=kochaSamples().length, U=kochaUnion(days), t1=U.f.size/N, t2=U.b.size/N; return {f:(t1+t2)/2,n:U.f.size+U.b.size,tot:2*N,t1,t2}; }
+window.showKocha = () => { setTab("geo"); zoneLayer.clearLayers(); const S=kochaSamples(), days=[]; if(ZRANGE) for(let t=ZRANGE.from;t<=ZRANGE.to;t+=86400) days.push(toD(t)); const U=kochaUnion(days);
+L.polyline(KOCHA_LINE.map(p=>[p[1],p[0]]),{color:"#7c3aed",weight:3,opacity:.5,interactive:false}).addTo(zoneLayer);
+S.forEach((s,j)=>{ const f=U.f.has(j), b=U.b.has(j), col=f&&b?"#00c853":f||b?"#ffc000":"#ff1744";
+L.circleMarker([s.lat,s.lon],{radius:5,color:"#fff",weight:1,fillColor:col,fillOpacity:1}).bindTooltip(`${s.part}-bo'lak · 1-tomon: ${f?"o'tilgan":"<b>O'TILMAGAN</b>"} · 2-tomon: ${b?"o'tilgan":"<b>O'TILMAGAN</b>"}`).addTo(zoneLayer); });
+map.fitBounds(L.latLngBounds(KOCHA_LINE.map(p=>[p[1],p[0]])),{padding:[30,30]});
+const x=kochaPct(days); $("ginfo").innerHTML=`<b>Oʻzbekiston koʻcha</b> – markaziy koʻcha, ${KOCHA_PARTS} ta boʻlak, ${S.length} ta nuqta`+(x?`<br>1-tomon: <b>${Math.floor(x.t1*100)}%</b> · 2-tomon: <b>${Math.floor(x.t2*100)}%</b> · Jami: <b>${pctP(x.f)}%</b>`:"")+`<br><span style="font-size:12px">Yashil – ikki tomon oʻtilgan, sariq – bir tomon, qizil – oʻtilmagan</span>`; };
 function periods(){
   const {from,to}=ZRANGE; const P=[]; const keyOf=t=>toD(t);
   if(zMode==="day"){ for(let t=from;t<=to;t+=86400) P.push({lab:`${pad(tk(t).getUTCDate())}.${pad(tk(t).getUTCMonth()+1)}`,sub:["Du","Se","Ch","Pa","Ju","Sh","Ya"][(tk(t).getUTCDay()+6)%7],days:[keyOf(t)],dow:(tk(t).getUTCDay()+6)%7}); }
@@ -824,25 +860,27 @@ function renderToz(){
   if(P.length>62){ note=`<div style="color:#9b2222;font-size:12px;margin:6px 0">Ustunlar juda ko'p (${P.length}). Haftalik yoki oylik ko'rinishni tanlang.</div>`; P=P.slice(0,62); }
   const allDays=[]; for(let t=ZRANGE.from;t<=ZRANGE.to;t+=86400) allDays.push(toD(t));
   const rows=[]; REJA.forEach(([t,ms])=>ms.forEach(([n,k,g])=>rows.push({t,n,k,g})));
-  const tot=rows.map(r=>r.g!=null&&zoneGroups[r.g]?pct(r.g,allDays):null).filter(Boolean);
+  const tot=rows.map(r=>r.g==="KOCHA"?kochaPct(allDays):r.g!=null&&zoneGroups[r.g]?pct(r.g,allDays):null).filter(Boolean);
   const avg=tot.length?tot.reduce((s,x)=>s+x.f,0)/tot.length:0;
   $("kpis").innerHTML=`
-    <div class="kpi"><span>O'rtacha tozalik (butun davr)</span><b>${Math.round(avg*100)}%</b></div>
+    <div class="kpi"><span>O'rtacha tozalik (butun davr)</span><b>${pctP(avg)}%</b></div>
     <div class="kpi"><span>95–100%</span><b style="color:#00b050">${tot.filter(x=>pctP(x.f)>=95).length}</b></div>
     <div class="kpi"><span>90–94,9%</span><b style="color:#5f9e2a">${tot.filter(x=>{const p=pctP(x.f);return p>=90&&p<95}).length}</b></div>
     <div class="kpi"><span>60–89,9%</span><b style="color:#c08f00">${tot.filter(x=>{const p=pctP(x.f);return p>=60&&p<90}).length}</b></div>
     <div class="kpi"><span>0–59,9%</span><b style="color:#ff0000">${tot.filter(x=>pctP(x.f)<60).length}</b></div>`;
-  let h=`<thead><tr><th class="c">№</th><th>Texnika</th><th>MFY</th><th>Kunlari</th>${P.map(p=>`<th class="c">${esc(p.lab)}${p.sub?"<br>"+p.sub:""}</th>`).join("")}<th class="c">Butun davr</th></tr></thead><tbody>`;
+  let h=`<thead><tr><th class="c">№ / Texnika</th><th>MFY</th><th>Kunlari</th>${P.map(p=>`<th class="c">${esc(p.lab)}${p.sub?"<br>"+p.sub:""}</th>`).join("")}<th class="c">Butun davr</th></tr></thead><tbody>`;
   // Har bir mashina o'z MFYlari bilan bitta blok: tepada va pastda qalin chiziq, mashina raqami birlashtirilgan katakda
   const cnt={}; rows.forEach(r=>cnt[r.t]=(cnt[r.t]||0)+1);
+const subOf=t=>{ const m=rows.filter(r=>r.t===t&&r.g!=="KOCHA").length, k=rows.some(r=>r.t===t&&r.g==="KOCHA"); return m+" ta MFY"+(k?" + koʻcha":""); };
   let last=null, gi=0;
-  rows.forEach((r,i)=>{ const first=r.t!==last; if(first) gi++; last=r.t; const ok=r.g!=null&&zoneGroups[r.g]; const plan=kunlar(r.k);
-    const lastRow = i===rows.length-1 || rows[i+1].t!==r.t;
-    h+=`<tr class="${first?"gs":""} ${lastRow?"ge":""} ${gi%2?"godd":""}">${first?`<td class="tx" rowspan="${cnt[r.t]}" style="min-width:32px"><b>${gi}</b></td><td class="tx" rowspan="${cnt[r.t]}"><b>${esc(r.t)}</b><br><span>${cnt[r.t]} ta MFY</span></td>`:""}<td class="${ok?"mf":""}" ${ok?`onclick="toMap(${r.g},true)"`:""}>${esc(r.n)}</td><td>${esc(r.k||"—")}</td>`;
-    P.forEach(p=>{ const x=ok?pct(r.g,p.days):null; const pl=p.dow!=null&&plan.has(p.dow)?" plan":"";
-      h+=`<td class="c ${cls(x&&x.f)}${pl}" title="${x?x.n+" / "+x.tot+" geozona":""}">${x?Math.floor(pctP(x.f)+1e-9)+"%":(ok&&ZRES[r.g]?"—":"")}</td>`; });
-    const all=ok?pct(r.g,allDays):null;
-    h+=`<td class="c ${cls(all&&all.f)}" title="${all?all.n+" / "+all.tot+" geozona":""}">${all?Math.floor(pctP(all.f)+1e-9)+"%":(r.g==null?"guruh yo'q":"")}</td></tr>`; });
+  rows.forEach((r,i)=>{ const first=r.t!==last; if(first) gi++; last=r.t; const isK=r.g==="KOCHA"; const ok=isK?!!(KRES&&!KRES.err):(r.g!=null&&zoneGroups[r.g]); const plan=kunlar(r.k);
+const PX=days=>isK?kochaPct(days):pct(r.g,days), unit=isK?" nuqta (2 tomon)":" geozona";
+const lastRow = i===rows.length-1 || rows[i+1].t!==r.t;
+h+=`<tr class="${first?"gs":""} ${lastRow?"ge":""} ${gi%2?"godd":""}">${first?`<td class="tx" rowspan="${cnt[r.t]}"><b>${gi}. ${esc(r.t)}</b><br><span>${subOf(r.t)}</span></td>`:""}<td class="${ok?"mf":""}" ${ok?(isK?'onclick="showKocha()"':`onclick="toMap(${r.g},true)"`):""}>${esc(r.n)}${isK?'<br><span style="font-size:11px;color:var(--mut)">markaziy koʻcha · 2 tomon</span>':""}</td><td>${esc(r.k||"—")}</td>`;
+P.forEach(p=>{ const x=ok?PX(p.days):null; const pl=p.dow!=null&&plan.has(p.dow)?" plan":"";
+h+=`<td class="c ${cls(x&&x.f)}${pl}" title="${x?x.n+" / "+x.tot+unit:""}">${x?Math.floor(pctP(x.f)+1e-9)+"%":(ok&&(isK||ZRES[r.g])?"—":"")}</td>`; });
+const all=ok?PX(allDays):null;
+h+=`<td class="c ${cls(all&&all.f)}" title="${all?all.n+" / "+all.tot+unit+(isK?" · 1-tomon "+Math.floor(all.t1*100)+"%, 2-tomon "+Math.floor(all.t2*100)+"%":""):""}">${all?Math.floor(pctP(all.f)+1e-9)+"%":(isK?(KRES&&KRES.err?"xato":""):(r.g==null?"guruh yo'q":""))}</td></tr>`; });
   $("ztable").innerHTML=h+"</tbody>";
   $("znote").innerHTML=note;
 }
@@ -862,7 +900,7 @@ $("zxls").onclick = () => {
   const aoa=[["BIO TEX EKO – MFY tozalik foizi ("+MODE+")"],["Davr: "+fmtDT(ZRANGE.from)+" – "+fmtDT(ZRANGE.to)],[],head];
   const aoa2=[["Geozonalar soni: kirilgan / jami"],[],head];
   REJA.forEach(([t,ms])=>ms.forEach(([n,k,g])=>{ const ok=g!=null&&zoneGroups[g];
-    const cells=P.map(p=>ok?pct(g,p.days):null), all=ok?pct(g,allDays):null;
+    const PX=d=>g==="KOCHA"?kochaPct(d):ok?pct(g,d):null; const cells=P.map(p=>PX(p.days)), all=PX(allDays);
     aoa.push([t,n,k||"",...cells.map(x=>x?x.f:""),all?all.f:(g==null?"guruh yo'q":"")]);
     aoa2.push([t,n,k||"",...cells.map(x=>x?`${x.n}/${x.tot}`:""),all?`${all.n}/${all.tot}`:""]); }));
   const ws=XLSX.utils.aoa_to_sheet(aoa), ws2=XLSX.utils.aoa_to_sheet(aoa2);
