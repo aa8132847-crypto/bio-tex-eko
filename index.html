@@ -127,10 +127,13 @@ td.p{font-weight:700;text-align:center;width:80px}
 .truck{position:relative}
 .truck .tlab{position:absolute;left:50%;top:24px;transform:translateX(-50%);white-space:nowrap;color:#d0021b;font-weight:700;font-size:11px;text-shadow:-1px -1px 0 #fff,1px -1px 0 #fff,-1px 1px 0 #fff,1px 1px 0 #fff,0 0 3px #fff}
 .mfyname span{position:absolute;transform:translate(-50%,-50%);white-space:nowrap;font-weight:800;font-size:12px;color:#1d2733;text-shadow:-1px -1px 0 #fff,1px -1px 0 #fff,-1px 1px 0 #fff,1px 1px 0 #fff,0 0 4px #fff}
-.zno span{position:absolute;transform:translate(-50%,-50%);font-weight:800;font-size:11px;color:#fff;text-shadow:-1px -1px 0 #000,1px -1px 0 #000,-1px 1px 0 #000,1px 1px 0 #000}
+.zno span{position:absolute;transform:translate(-50%,-50%);font-weight:700;font-size:11px;white-space:nowrap}
+.zno .ny{color:#e00000}
+.zno .nw{color:#fff;text-shadow:0 0 2px rgba(0,0,0,.6)}
 #map.far .tlab{font-size:9px}
 #map.nozno .zno{display:none}
 #map.noarr .parrw{display:none}
+svg.parrw{display:block;filter:drop-shadow(0 0 1px rgba(0,0,0,.4))}
 .leaflet-trk-pane canvas{pointer-events:none!important}
 .pic{background:#2f6fd8!important;border-radius:3px!important}
 #map.far .mfyname span{font-size:10px}
@@ -468,7 +471,7 @@ async function monTracks(from,to,gen){
       const pts=(r.messages||[]).filter(m=>m.pos).map(m=>({ll:[m.pos.y,m.pos.x],t:m.t,s:m.pos.s}));
       if(gen!==monGen) return;
       if(pts.length>1) drawn++;
-      drawTrack(trackLayer,pts,{w:4,arrowKm:0.25,name:u.nm});
+      drawTrack(trackLayer,pts,{w:2.5,arrowKm:0.12,name:u.nm});
       findStops(pts,5*60).forEach(st=>L.marker(st.ll,{icon:pIcon()}).bindPopup(`<b>${esc(raqam(u.nm))}</b> – to'xtash<br>Kelgan: ${fmtDT(st.a)}<br>Ketgan: ${fmtDT(st.b)}<br>Turgan vaqti: <b>${dur(st.b-st.a)}</b>`).addTo(trackLayer));
     }catch(e){}
     done++; st(`Treklar: ${done} / ${list.length} mashina yuklandi`);
@@ -484,7 +487,7 @@ function drawMfyAreas(){
   mfyList().forEach(g=>{ const a=AUD[g.id]; const b=a&&a.bnd&&ZD[a.bnd]; if(!b) return;
     const sel = single && g.id===mSel; if(single && !sel) return;
     const col=mfyColor(g.id);
-    L.polygon(b.p.map(p=>[p.y,p.x]),{color:sel?"#c0392b":col,weight:sel?3:1.5,fillColor:col,fillOpacity:sel?.25:.35,interactive:false}).addTo(mfyLayer);
+    L.polygon(b.p.map(p=>[p.y,p.x]),{color:sel?"#c0392b":col,weight:sel?3:1.5,fillColor:col,fillOpacity:sel?.35:.42,interactive:false}).addTo(mfyLayer);
     const c=b.b?[b.b.cen_y,b.b.cen_x]:null; if(!c) return;
     L.marker(c,{interactive:false,icon:L.divIcon({className:"mfyname",html:`<span>${esc(cleanName(g.n))}</span>`,iconSize:[0,0]})}).addTo(mfyLayer);
   });
@@ -492,7 +495,7 @@ function drawMfyAreas(){
 // Wialondagi geozona rangi (ARGB) va haqiqiy kengligi (metr -> piksel)
 const zoneColor = z => { const c=(z.c>>>0)&0xFFFFFF; return c ? "#"+c.toString(16).padStart(6,"0") : "#e02b2b"; };
 const mPerPx = () => 156543.03*Math.cos(40.8*Math.PI/180)/Math.pow(2,map.getZoom());
-const zoneW = w => Math.max(3, Math.min(26, (w||20)/mPerPx()));
+const zoneW = w => Math.max(3, Math.min(600, (w||20)/mPerPx()));
 let ZLINES=[];
 function rezone(){ ZLINES.forEach(l=>l.setStyle({weight:zoneW(l._zw)+(l._cs?3:0)})); }
 function drawMonZones(fit){
@@ -504,13 +507,12 @@ function drawMonZones(fit){
     (CLEAN[g.id]||[]).forEach(i=>{ const z=ZD[i]; if(!z||!z.p) return; const ll=z.p.map(p=>[p.y,p.x]); all.push(...ll);
       const ok=V&&V.has(i), wc = !MRANGE ? zoneColor(z) : !ready ? "#9aa5b4" : ok ? "#00c853" : "#ff1744";
       let lay;
-      if(z.t===3) lay=L.circle(ll[0],{renderer:R,radius:z.p[0].r||z.w||20,color:"#111",weight:1.5,fillColor:wc,fillOpacity:.9});
-      else if(z.t===2) lay=L.polygon(ll,{renderer:R,color:"#111",weight:1.5,fillColor:wc,fillOpacity:.75});
-      else { const cs=L.polyline(ll,{renderer:R,color:"#111",weight:zoneW(z.w)+3,opacity:.85,lineCap:"round",lineJoin:"round",interactive:false}).addTo(zoneLayer); cs._zw=z.w; cs._cs=1; ZLINES.push(cs);
-             lay=L.polyline(ll,{renderer:R,color:wc,weight:zoneW(z.w),opacity:1,lineCap:"round",lineJoin:"round"}); lay._zw=z.w; ZLINES.push(lay); }
+      if(z.t===3) lay=L.circle(ll[0],{renderer:R,radius:z.p[0].r||z.w||20,color:wc,weight:1,fillColor:wc,fillOpacity:.75});
+      else if(z.t===2) lay=L.polygon(ll,{renderer:R,color:wc,weight:1,fillColor:wc,fillOpacity:.7});
+      else { lay=L.polyline(ll,{renderer:R,color:wc,weight:zoneW(z.w),opacity:MRANGE?.8:.75,lineCap:"round",lineJoin:"round"}); lay._zw=z.w; ZLINES.push(lay); }
       const mv=MOVED[i];
       lay.bindTooltip(`<b>${esc(cleanName(g.n))}</b> · № <b>${NEWNO[i]}</b>${String(z.n)!==String(NEWNO[i])||mv?` <span style="color:#888">(Wialonda: ${mv?esc(cleanName(zoneGroups[mv.from].n))+" ":""}№${esc(z.n)})</span>`:""}${MRANGE?"<br>"+(!ready?"hisoblanmoqda":ok?"<b style='color:#0a8f3c'>o'tilgan</b>":"<b style='color:#d50000'>O'TILMAGAN</b>"):""}`).addTo(zoneLayer);
-      if(showNo){ const m=ll[Math.floor(ll.length/2)]; L.marker(m,{interactive:false,icon:L.divIcon({className:"zno",html:`<span>${NEWNO[i]}</span>`,iconSize:[0,0]})}).addTo(zoneLayer); }
+      if(showNo){ const m=ll[Math.floor(ll.length/2)]; L.marker(m,{interactive:false,icon:L.divIcon({className:"zno",html:`<span class="${/^#ff(ff|c2)/i.test(wc)?"ny":"nw"}">${NEWNO[i]}</span>`,iconSize:[0,0]})}).addTo(zoneLayer); }
     }); });
   if(fit&&all.length) map.fitBounds(L.latLngBounds(all),{padding:[30,30]});
   const ms=$("mstat"); if(ms){ const g=mSel!=="all"&&zoneGroups[mSel]; const p=g&&mfyPct(g);
@@ -542,13 +544,12 @@ function quickRange(q){
 }
 
 /* Trek chizish (Wialondagidek tiniq): oq hoshiya + tezlik rangidagi chiziq + yo'nalish strelkalari */
-const spdCol = s => s>60?"#e60000":s>40?"#ff8c00":s>20?"#00a651":"#1f3cff";
+const spdCol = s => s>50?"#ff0000":s>30?"#00a000":s>10?"#0000d0":"#000000";
 function drawTrack(layer,pts,opt={}){
   if(pts.length<2) return;
   const R=window.__tc||zoneCanvas(), w=opt.w||4;
   let seg=[pts[0].ll]; const segs=[seg];
   for(let i=1;i<pts.length;i++){ if(hav(pts[i-1].ll,pts[i].ll)>3){ seg=[]; segs.push(seg);} seg.push(pts[i].ll); }
-  segs.forEach(sg=>sg.length>1&&L.polyline(sg,{renderer:R,color:"#fff",weight:w+3,opacity:.9,interactive:false}).addTo(layer));
   let run=[pts[0].ll], col=spdCol(pts[1].s);
   const flush=()=>{ if(run.length>1) L.polyline(run,{renderer:R,color:col,weight:w,opacity:1,interactive:false}).addTo(layer); };
   for(let i=1;i<pts.length;i++){ const c=spdCol(pts[i].s);
@@ -559,7 +560,7 @@ function drawTrack(layer,pts,opt={}){
   let acc=0; const step=opt.arrowKm||0.15;
   for(let i=1;i<pts.length;i++){ const d=hav(pts[i-1].ll,pts[i].ll); acc+=d; if(acc<step||d<0.005||d>3) continue; acc=0;
     const [y1,x1]=pts[i-1].ll,[y2,x2]=pts[i].ll; const ang=Math.atan2((x2-x1)*Math.cos(y1*Math.PI/180),y2-y1)*180/Math.PI;
-    L.marker(pts[i].ll,{interactive:false,icon:L.divIcon({className:"",iconSize:[14,14],iconAnchor:[7,7],html:`<div class="parr parrw" style="color:${spdCol(pts[i].s)};transform:rotate(${ang-90}deg)">➤</div>`})}).addTo(layer); }
+    L.marker(pts[i].ll,{interactive:false,icon:L.divIcon({className:"",iconSize:[14,14],iconAnchor:[7,7],html:`<svg class="parrw" width="14" height="14" viewBox="0 0 14 14" style="transform:rotate(${ang}deg)"><path d="M7 1 L12 12 L7 9 L2 12 Z" fill="#fff" stroke="#000" stroke-width="1.3" stroke-linejoin="round"/></svg>`})}).addTo(layer); }
 }
 function trackHover(layer,pts,name){
   const ln=L.polyline(pts.map(p=>p.ll),{renderer:window.__ts,color:"#000",opacity:0,weight:18,interactive:true}).addTo(layer);
@@ -601,7 +602,7 @@ async function showTrack(){
     // masofa, tezlik
     let km=0,maxs=0,moveT=0; for(let i=1;i<pts.length;i++){ const dd=hav(pts[i-1].ll,pts[i].ll); if(dd<5) km+=dd; maxs=Math.max(maxs,pts[i].s); if(pts[i].s>3) moveT+=pts[i].t-pts[i-1].t; }
     // trek: tezlik bo'yicha rangli, ustiga kursorni olib borsangiz vaqt va tezlik chiqadi
-    drawTrack(trackLayer,pts,{w:4,name:$("tu").selectedOptions[0].text});
+    drawTrack(trackLayer,pts,{w:3,arrowKm:0.1,name:$("tu").selectedOptions[0].text});
     // to'xtashlar (P)
     const minS=Math.max(1,+$("tmin").value||5)*60, stops=findStops(pts,minS);
     stopMarkers = stops.map((s,k)=>L.marker(s.ll,{icon:L.divIcon({className:"",html:`<div class="pic">P</div>`,iconSize:[20,20],iconAnchor:[10,10]})})
