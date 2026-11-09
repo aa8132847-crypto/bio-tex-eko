@@ -106,6 +106,7 @@ td.p{font-weight:700;text-align:center;width:80px}
 .mfyname span{position:absolute;transform:translate(-50%,-50%);white-space:nowrap;font-weight:800;font-size:12px;color:#1d2733;text-shadow:-1px -1px 0 #fff,1px -1px 0 #fff,-1px 1px 0 #fff,1px 1px 0 #fff,0 0 4px #fff}
 .zno span{position:absolute;transform:translate(-50%,-50%);font-weight:700;font-size:10px;color:#fff;background:rgba(0,0,0,.55);border-radius:3px;padding:0 3px}
 #map.far .tlab{font-size:9px}
+#map.nozno .zno{display:none}
 #map.far .mfyname span{font-size:10px}
 .parr{color:#fff;font-size:12px;font-weight:900;text-shadow:0 0 2px #000}
 .leaflet-control-layers-overlays{border-top:2px solid #2d3e50;margin-top:4px;padding-top:4px}
@@ -324,7 +325,7 @@ function initMap(){
   const off=JSON.parse(store.get("bte_off")||"[]"); Object.entries(ov).forEach(([k,l])=>{ if(off.includes(k)) map.removeLayer(l); });
   const saveOff=()=>store.set("bte_off",JSON.stringify(Object.entries(ov).filter(([k,l])=>!map.hasLayer(l)).map(([k])=>k)));
   map.on("overlayadd overlayremove",saveOff);
-  map.on("zoomend",()=>document.getElementById("map").classList.toggle("far",map.getZoom()<13));
+  const zcls=()=>{const el=document.getElementById("map"),z=map.getZoom();el.classList.toggle("far",z<13);el.classList.toggle("nozno",z<16);}; map.on("zoomend",zcls); zcls();
 }
 
 /* ================= Monitoring ================= */
