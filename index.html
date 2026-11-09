@@ -189,7 +189,7 @@ td.p{font-weight:700;text-align:center;width:80px}
         <input id="q" placeholder="MFY qidirish">
       </div>
       <div class="list" id="ulist"></div>
-      <div class="info" id="upd"></div>
+      <div class="info" id="mstat" style="padding-bottom:0"></div><div class="info" id="upd"></div>
     </div>
     <!-- Treklar -->
     <div class="pane hidden" id="p-trk">
@@ -209,6 +209,7 @@ td.p{font-weight:700;text-align:center;width:80px}
         <input id="gq" placeholder="MFY qidirish">
         <div class="seg"><button data-gf="all" class="on">Hammasi</button><button data-gf="bad">Muammoli</button><button data-gf="other">Boshqa</button></div>
         <div id="gsum" style="font-size:12px;color:var(--mut)">Geozonalar tekshirilmoqda...</div>
+        <button class="btn sec" id="gxls">⬇ Geozona tuzatishlari (Excel)</button>
       </div>
       <div class="list" id="glist"></div>
       <div class="info" id="ginfo"></div>
@@ -392,10 +393,33 @@ function drawUnits(){
 let MRES={}, MRANGE=null, mRunning=false, mSel="all";
 const zoneCanvas = () => window.__zc || (window.__zc = L.canvas({padding:.5}));
 function mfyList(){ return Object.values(zoneGroups).filter(isMfy).sort((a,b)=>cleanName(a.n).localeCompare(cleanName(b.n),"ru",{numeric:true})); }
-function mfyPct(g){ const s=MRES[g.id]; if(!s) return null; const a=AUD[g.id]; const tot=a?a.pts:g.zns.length; return tot?{f:s.size/tot,n:s.size,tot}:null; }
+/* Geozonalarni tartibga keltirish (Wialondagi kamchiliklar to'g'rilanadi, Wialonning o'zida hech narsa o'zgarmaydi):
+   - har bir geozona aslida qaysi MFY chegarasi ichida turgan bo'lsa, o'sha MFYga hisoblanadi;
+   - MFY ichida geozonalar shimoldan janubga, qatorma-qator (ilon izi) tartibda 1, 2, 3 ... deb qayta raqamlanadi;
+   - takror nomlar yo'qoladi, chunki har biri o'z yangi raqamini oladi. */
+let CLEAN={}, NEWNO={}, MOVED={}, BNDS=new Set();
+function buildClean(){
+  const mfy=Object.values(zoneGroups).filter(isMfy);
+  BNDS=new Set(mfy.map(g=>AUD[g.id]&&AUD[g.id].bnd).filter(Boolean));
+  const B=mfy.map(g=>{const b=AUD[g.id]&&AUD[g.id].bnd&&ZD[AUD[g.id].bnd]; return b?{g,poly:b.p.map(q=>[q.x,q.y])}:null}).filter(Boolean);
+  CLEAN={}; MOVED={}; NEWNO={}; mfy.forEach(g=>CLEAN[g.id]=[]);
+  const seen=new Set();
+  mfy.forEach(g=>{ const own=B.find(x=>x.g.id===g.id);
+    g.zns.forEach(i=>{ const z=ZD[i]; if(!z||!z.p||BNDS.has(i)||seen.has(i)) return; seen.add(i);
+      let home=g.id; const c=cen(z);
+      if(own && !pip(c,own.poly)){ const o=B.find(x=>pip(c,x.poly)); if(o){ home=o.g.id; MOVED[i]={from:g.id,to:o.g.id}; } }
+      CLEAN[home].push(i); }); });
+  Object.entries(CLEAN).forEach(([gid,ids])=>{
+    const arr=ids.map(i=>({i,c:cen(ZD[i])})); const band=0.0006;
+    arr.sort((p,q)=>{ const bp=Math.floor(-p.c[1]/band), bq=Math.floor(-q.c[1]/band); if(bp!==bq) return bp-bq; return bp%2 ? q.c[0]-p.c[0] : p.c[0]-q.c[0]; });
+    arr.forEach((x,k)=>NEWNO[x.i]=k+1); AUD[gid].pts=arr.length; });
+}
+let VIS_ALL=null;
+function visAll(){ if(VIS_ALL) return VIS_ALL; const s=new Set(); Object.values(MRES).forEach(x=>x.forEach(i=>s.add(i))); return VIS_ALL=s; }
+function mfyPct(g){ if(!MRANGE||!CLEAN[g.id]) return null; const ids=CLEAN[g.id]; const tot=ids.length; if(!tot) return null; const V=visAll(); const n=ids.filter(i=>V.has(i)).length; return {f:n/tot,n,tot}; }
 function drawMfyList(){
   const q=$("q").value.toLowerCase(), L2=mfyList();
-  let allN=0, allT=0; L2.forEach(g=>{const p=mfyPct(g); const a=AUD[g.id]; allT+=a?a.pts:g.zns.length; if(p) allN+=p.n;});
+  let allN=0, allT=0; L2.forEach(g=>{const p=mfyPct(g); const a=AUD[g.id]; allT+=CLEAN[g.id]?CLEAN[g.id].length:(a?a.pts:g.zns.length); if(p) allN+=p.n;});
   const badge=p=>p?`<span class="bad ${p.f>=.9?"b-ok":p.f>=.6?"b-yel":"b-red"}" style="font-size:12px;font-weight:700">${Math.round(p.f*100)}%</span><br><span style="font-size:11px">${p.n}/${p.tot}</span>`:"";
   const planOf = gid => { const r=REJA.find(([t,ms])=>ms.some(m=>m[2]===gid)); return r?r[0]:""; };
   let h=`<div class="row ${mSel==="all"?"sel":""}" data-g="all"><div style="flex:1"><div class="nm">Barcha MFYlar</div><div class="sub">${L2.length} ta MFY · ${allT} ta geozona</div></div><div class="rt">${MRANGE?badge({f:allT?allN/allT:0,n:allN,tot:allT}):""}</div></div>`;
@@ -406,41 +430,49 @@ function initMon(){ const [a]=quickRange("today"); $("mdf").value=toDL(a); $("md
 $("mq").onclick = e => { const q=e.target.dataset.q; if(!q) return; const [a,b]=quickRange(q); $("mdf").value=toDL(a); $("mdt").value=toDL(Math.min(b,NOW())); calcMon(); };
 $("mbtn").onclick = () => calcMon();
 $("q").oninput = drawMfyList;
-$("ulist").onclick = e => { const r=e.target.closest(".row"); if(!r) return; mSel = r.dataset.g==="all" ? "all" : +r.dataset.g; drawMfyList(); drawMonZones(true); if(MRANGE&&!mRunning) monTracks(MRANGE.from,MRANGE.to); };
+$("ulist").onclick = e => { const r=e.target.closest(".row"); if(!r) return; mSel = r.dataset.g==="all" ? "all" : +r.dataset.g; drawMfyList(); drawMonZones(true); if(MRANGE) monTracks(MRANGE.from,MRANGE.to,monGen); };
+let monGen=0;
 async function calcMon(){
-  if(mRunning) return;
   if(!Object.keys(AUD).length){ $("upd").textContent="Geozonalar hali yuklanmoqda, biroz kuting..."; return; }
   const from=fromDL($("mdf").value), to=Math.min(fromDL($("mdt").value)+59, NOW());
   if(!(to>from)){ $("upd").textContent="Sanalarni to'g'ri tanlang."; return; }
-  mRunning=true; $("mbtn").disabled=true; MRES={}; MRANGE={from,to};
+  const gen=++monGen;               // yangi so'rov – eskisi to'xtaydi
+  mRunning=true; MRES={}; VIS_ALL=null; MRANGE={from,to};
+  $("upd").innerHTML=`<b>${fmtDT(from)} – ${fmtDT(to)}</b><br><span id="zst2">Geozonalar hisoblanmoqda...</span><br><span id="trkst">Treklar kutilmoqda...</span>`;
+  monTracks(from,to,gen);            // treklar darhol, parallel ravishda chiziladi
   const L2=mfyList(); let done=0;
   for(const g of L2){
-    try{ const d=await dayVisits(g.id,from,to); const s=new Set(); Object.values(d).forEach(x=>x.forEach(i=>s.add(i))); MRES[g.id]=s; }catch(e){}
-    done++; $("mbar").style.width=(100*done/L2.length)+"%"; $("upd").textContent=`Hisoblanmoqda: ${done} / ${L2.length}`;
+    if(gen!==monGen) return;
+    try{ const d=await dayVisits(g.id,from,to); if(gen!==monGen) return; const s=new Set(); Object.values(d).forEach(x=>x.forEach(i=>s.add(i))); MRES[g.id]=s; VIS_ALL=null; }catch(e){}
+    done++; $("mbar").style.width=(100*done/L2.length)+"%"; const z=$("zst2"); if(z) z.textContent=`Geozonalar: ${done} / ${L2.length} MFY`;
     if(done%10===0||done===L2.length){ drawMfyList(); drawMonZones(false); }
   }
-  $("upd").textContent=`${fmtDT(from)} – ${fmtDT(to)} · yashil – o'tilgan, qizil – o'tilmagan`;
-  mRunning=false; $("mbtn").disabled=false; drawMonZones(true);
-  monTracks(from,to);
+  if(gen!==monGen) return;
+  const z=$("zst2"); if(z) z.textContent="Geozonalar: yashil – o'tilgan, qizil – o'tilmagan";
+  mRunning=false; drawMfyList(); drawMonZones(true);
 }
-async function monTracks(from,to){
+async function monTracks(from,to,gen){
+  if(gen==null) gen=monGen;
   trackLayer.clearLayers();
-  if(to-from>3*86400){ $("upd").insertAdjacentHTML("beforeend","<br><span style='color:#9b2222'>Treklar 3 kungacha bo'lgan davr uchun chiziladi.</span>"); return; }
+  const st=t=>{ const e=$("trkst"); if(e) e.innerHTML=t; };
+  if(to-from>7*86400){ st("<span style='color:#9b2222'>Treklar 7 kungacha bo'lgan davr uchun chiziladi. Davrni qisqartiring.</span>"); return; }
   let list=units;
   if(mSel!=="all"){ const r=REJA.find(([t,ms])=>ms.some(m=>m[2]===mSel)); if(r) list=units.filter(u=>raqam(u.nm)===r[0]); }
-  let done=0; $("upd").insertAdjacentHTML("beforeend","<br><span id='trkst'>Treklar yuklanmoqda...</span>");
+  let done=0, drawn=0; st("Treklar yuklanmoqda...");
   for(const u of list){
+    if(gen!==monGen) return;
     try{
       const r=await api("messages/load_interval",{itemId:u.id,timeFrom:from,timeTo:to,flags:1,flagsMask:65281,loadCount:100000});
       await api("messages/unload",{});
       const pts=(r.messages||[]).filter(m=>m.pos).map(m=>({ll:[m.pos.y,m.pos.x],t:m.t,s:m.pos.s}));
-      if(pts.length) units.find(x=>x.id===u.id)._trk=1;
-      drawTrack(trackLayer,pts,{w:4,arrowKm:0.25});
+      if(gen!==monGen) return;
+      if(pts.length>1) drawn++;
+      drawTrack(trackLayer,pts,{w:4,arrowKm:0.25,name:u.nm});
       findStops(pts,5*60).forEach(st=>L.marker(st.ll,{icon:pIcon()}).bindPopup(`<b>${esc(raqam(u.nm))}</b> – to'xtash<br>Kelgan: ${fmtDT(st.a)}<br>Ketgan: ${fmtDT(st.b)}<br>Turgan vaqti: <b>${dur(st.b-st.a)}</b>`).addTo(trackLayer));
     }catch(e){}
-    done++; $("mbar").style.width=(100*done/list.length)+"%"; const ts=$("trkst"); if(ts) ts.textContent=`Treklar: ${done} / ${list.length} mashina`;
+    done++; st(`Treklar: ${done} / ${list.length} mashina yuklandi`);
   }
-  const ts=$("trkst"); if(ts) ts.textContent="Treklar chizildi (ko'k <20, yashil 20–40, sariq 40–60, qizil >60 km/soat)";
+  st(`Treklar: <b>${drawn}</b> ta mashina yurgan. Chiziq ustiga sichqonchani olib boring – sana, vaqt va tezlik chiqadi.<br><span style="font-size:11px">Ko'k &lt;20, yashil 20–40, sariq 40–60, qizil &gt;60 km/soat</span>`);
 }
 // Har bir MFYga o'z rangi (Wialondagidek), hudud markazida nomi
 const MFY_COLORS=["#f2e45c","#9b6fd6","#5cc98a","#f07b8a","#f4a35e","#5aa9e6","#c9e35a","#e07be0","#57d1c9","#f6c445","#8f9ff2","#e8735a","#7fd65c","#d68fb8","#4fbcd9","#c8a26a"];
@@ -461,26 +493,27 @@ const zoneColor = z => { const c=(z.c>>>0)&0xFFFFFF; return c ? "#"+c.toString(1
 const mPerPx = () => 156543.03*Math.cos(40.8*Math.PI/180)/Math.pow(2,map.getZoom());
 const zoneW = w => Math.max(3, Math.min(26, (w||20)/mPerPx()));
 let ZLINES=[];
-function rezone(){ ZLINES.forEach(l=>l.setStyle({weight:zoneW(l._zw)})); }
+function rezone(){ ZLINES.forEach(l=>l.setStyle({weight:zoneW(l._zw)+(l._cs?3:0)})); }
 function drawMonZones(fit){
   zoneLayer.clearLayers(); ZLINES=[]; drawMfyAreas();
   const gs = mSel==="all" ? mfyList() : [zoneGroups[mSel]].filter(Boolean);
   const all=[], R=zoneCanvas(), single=mSel!=="all";
-  gs.forEach(g=>{ const a=AUD[g.id]||{}; const vis=MRANGE?MRES[g.id]:null;
-    g.zns.forEach(i=>{ const z=ZD[i]; if(!z||!z.p) return; const ll=z.p.map(p=>[p.y,p.x]); all.push(...ll);
-      if(i===a.bnd) return;
-      const ok=vis&&vis.has(i), col=!MRANGE?"#1f2a6b":!vis?"#8a94a6":ok?"#1b8a4b":"#e02b2b";
-      const wc = MRANGE ? col : zoneColor(z);
-      const lay = z.t===3 ? L.circle(ll[0],{renderer:R,radius:z.p[0].r||z.w||20,color:wc,weight:2,fillColor:wc,fillOpacity:.6})
-               : z.t===2 ? L.polygon(ll,{renderer:R,color:wc,weight:2,fillOpacity:.35})
-               : L.polyline(ll,{renderer:R,color:wc,weight:zoneW(z.w),opacity:.85,lineCap:"round",lineJoin:"round"});
-      if(z.t!==2&&z.t!==3){ lay._zw=z.w; ZLINES.push(lay); }
-      lay.bindTooltip(`${esc(cleanName(g.n))} · № ${esc(z.n)}${MRANGE?" · "+(!vis?"hisoblanmoqda":ok?"o'tilgan":"O'TILMAGAN"):""}`).addTo(zoneLayer);
-      // bitta MFY tanlanganda har bir geozona raqami yoziladi (Wialondagidek)
-      if(single||map.getZoom()>=15){ const m=ll[Math.floor(ll.length/2)]; L.marker(m,{interactive:false,icon:L.divIcon({className:"zno",html:`<span>${esc(z.n)}</span>`,iconSize:[0,0]})}).addTo(zoneLayer); }
+  const V = MRANGE ? visAll() : null, showNo = single||map.getZoom()>=15;
+  gs.forEach(g=>{ const ready = MRANGE && MRES[g.id];
+    (CLEAN[g.id]||[]).forEach(i=>{ const z=ZD[i]; if(!z||!z.p) return; const ll=z.p.map(p=>[p.y,p.x]); all.push(...ll);
+      const ok=V&&V.has(i), wc = !MRANGE ? zoneColor(z) : !ready ? "#9aa5b4" : ok ? "#00c853" : "#ff1744";
+      let lay;
+      if(z.t===3) lay=L.circle(ll[0],{renderer:R,radius:z.p[0].r||z.w||20,color:"#111",weight:1.5,fillColor:wc,fillOpacity:.9});
+      else if(z.t===2) lay=L.polygon(ll,{renderer:R,color:"#111",weight:1.5,fillColor:wc,fillOpacity:.75});
+      else { const cs=L.polyline(ll,{renderer:R,color:"#111",weight:zoneW(z.w)+3,opacity:.85,lineCap:"round",lineJoin:"round",interactive:false}).addTo(zoneLayer); cs._zw=z.w; cs._cs=1; ZLINES.push(cs);
+             lay=L.polyline(ll,{renderer:R,color:wc,weight:zoneW(z.w),opacity:1,lineCap:"round",lineJoin:"round"}); lay._zw=z.w; ZLINES.push(lay); }
+      const mv=MOVED[i];
+      lay.bindTooltip(`<b>${esc(cleanName(g.n))}</b> · № <b>${NEWNO[i]}</b>${String(z.n)!==String(NEWNO[i])||mv?` <span style="color:#888">(Wialonda: ${mv?esc(cleanName(zoneGroups[mv.from].n))+" ":""}№${esc(z.n)})</span>`:""}${MRANGE?"<br>"+(!ready?"hisoblanmoqda":ok?"<b style='color:#0a8f3c'>o'tilgan</b>":"<b style='color:#d50000'>O'TILMAGAN</b>"):""}`).addTo(zoneLayer);
+      if(showNo){ const m=ll[Math.floor(ll.length/2)]; L.marker(m,{interactive:false,icon:L.divIcon({className:"zno",html:`<span>${NEWNO[i]}</span>`,iconSize:[0,0]})}).addTo(zoneLayer); }
     }); });
   if(fit&&all.length) map.fitBounds(L.latLngBounds(all),{padding:[30,30]});
-  if(mSel!=="all"&&zoneGroups[mSel]){ const p=mfyPct(zoneGroups[mSel]); if(p) $("upd").innerHTML=`<b>${esc(cleanName(zoneGroups[mSel].n))}</b>: o'tilgan <b style="color:#13633a">${p.n}</b>, o'tilmagan <b style="color:#9b2222">${p.tot-p.n}</b> · <b>${Math.round(p.f*100)}%</b><br>${fmtDT(MRANGE.from)} – ${fmtDT(MRANGE.to)}`; }
+  const ms=$("mstat"); if(ms){ const g=mSel!=="all"&&zoneGroups[mSel]; const p=g&&mfyPct(g);
+    ms.innerHTML = g ? `<b>${esc(cleanName(g.n))}</b>: ${CLEAN[g.id].length} ta geozona`+(p?` · o'tilgan <b style="color:#13633a">${p.n}</b>, o'tilmagan <b style="color:#9b2222">${p.tot-p.n}</b> · <b>${Math.round(p.f*100)}%</b>`:"") : ""; }
 }
 
 /* ================= Treklar ================= */
@@ -521,10 +554,17 @@ function drawTrack(layer,pts,opt={}){
     if(hav(pts[i-1].ll,pts[i].ll)>3){ flush(); run=[pts[i].ll]; col=c; continue; }
     if(c!==col){ run.push(pts[i].ll); flush(); run=[pts[i].ll]; col=c; } else run.push(pts[i].ll); }
   flush();
+  trackHover(layer,pts,opt.name);
   let acc=0; const step=opt.arrowKm||0.15;
   for(let i=1;i<pts.length;i++){ const d=hav(pts[i-1].ll,pts[i].ll); acc+=d; if(acc<step||d<0.005||d>3) continue; acc=0;
     const [y1,x1]=pts[i-1].ll,[y2,x2]=pts[i].ll; const ang=Math.atan2((x2-x1)*Math.cos(y1*Math.PI/180),y2-y1)*180/Math.PI;
     L.marker(pts[i].ll,{interactive:false,icon:L.divIcon({className:"",iconSize:[14,14],iconAnchor:[7,7],html:`<div class="parr parrw" style="color:${spdCol(pts[i].s)};transform:rotate(${ang-90}deg)">➤</div>`})}).addTo(layer); }
+}
+function trackHover(layer,pts,name){
+  const R=window.__tc; const ln=L.polyline(pts.map(p=>p.ll),{renderer:R,opacity:0,weight:16,interactive:true}).addTo(layer);
+  ln.bindTooltip("",{sticky:true,direction:"top",offset:[0,-8]});
+  ln.on("mousemove",e=>{ let bi=0,bd=1e9; const P=e.latlng; for(let i=0;i<pts.length;i++){const d=(pts[i].ll[0]-P.lat)**2+(pts[i].ll[1]-P.lng)**2; if(d<bd){bd=d;bi=i}}
+    ln.setTooltipContent(`${name?"<b>"+esc(name)+"</b><br>":""}Sana: <b>${fmtDT(pts[bi].t).slice(0,10)}</b> · Vaqt: <b>${fmtS(pts[bi].t)}</b><br>Tezlik: <b>${Math.round(pts[bi].s)} km/soat</b>`); });
 }
 function findStops(pts,minS){
   const stops=[];
@@ -560,10 +600,7 @@ async function showTrack(){
     // masofa, tezlik
     let km=0,maxs=0,moveT=0; for(let i=1;i<pts.length;i++){ const dd=hav(pts[i-1].ll,pts[i].ll); if(dd<5) km+=dd; maxs=Math.max(maxs,pts[i].s); if(pts[i].s>3) moveT+=pts[i].t-pts[i-1].t; }
     // trek: tezlik bo'yicha rangli, ustiga kursorni olib borsangiz vaqt va tezlik chiqadi
-    drawTrack(trackLayer,pts,{w:4});
-    const hover=L.polyline(pts.map(p=>p.ll),{opacity:0,weight:14}).addTo(trackLayer);
-    hover.bindTooltip("",{sticky:true}); hover.on("mousemove",e=>{ let bi=0,bd=1e9; const P=e.latlng; for(let i=0;i<pts.length;i++){const d=(pts[i].ll[0]-P.lat)**2+(pts[i].ll[1]-P.lng)**2; if(d<bd){bd=d;bi=i}}
-      hover.setTooltipContent(`${fmtDT(pts[bi].t)} · <b>${Math.round(pts[bi].s)} km/soat</b>`); });
+    drawTrack(trackLayer,pts,{w:4,name:$("tu").selectedOptions[0].text});
     // to'xtashlar (P)
     const minS=Math.max(1,+$("tmin").value||5)*60, stops=findStops(pts,minS);
     stopMarkers = stops.map((s,k)=>L.marker(s.ll,{icon:L.divIcon({className:"",html:`<div class="pic">P</div>`,iconSize:[20,20],iconAnchor:[10,10]})})
@@ -630,7 +667,7 @@ async function loadGroups(){
       (await api("resource/get_zone_data",{itemId:RES_ID,col:ids.slice(i,i+500),flags:28})).forEach(z=>ZD[z.id]=z);
       $("gsum").textContent=`Geozonalar tekshirilmoqda... ${Math.min(i+500,ids.length)} / ${ids.length}`;
     }
-    audit(); drawGroups(); drawMfyList(); drawMonZones(false);
+    audit(); buildClean(); drawGroups(); drawMfyList(); drawMonZones(false);
     if(!MRANGE) calcMon();
   }catch(e){ $("gsum").textContent="Geozonalarni yuklab bo'lmadi: "+e.message; }
 }
@@ -766,8 +803,9 @@ function periods(){
     Object.entries(m).forEach(([lab,days])=>P.push({lab,days})); }
   return P;
 }
-function pct(g,days){ const R=ZRES[g]; if(!R||R.err) return null; const a=AUD[g]; const tot=a?a.pts:zoneGroups[g].zns.length; if(!tot) return null;
-  const s=new Set(); days.forEach(d=>R[d]&&R[d].forEach(i=>s.add(i))); return {f:s.size/tot,n:s.size,tot,set:s}; }
+function pct(g,days){ const R=ZRES[g]; if(!R||R.err||!CLEAN[g]) return null; const ids=CLEAN[g], tot=ids.length; if(!tot) return null;
+  const all=new Set(); days.forEach(d=>Object.values(ZRES).forEach(X=>X&&!X.err&&X[d]&&X[d].forEach(i=>all.add(i))));
+  const s=new Set(ids.filter(i=>all.has(i))); return {f:s.size/tot,n:s.size,tot,set:s}; }
 const cls = f => f==null?"":f>=.9?"pg":f>=.6?"py":"pr";
 function renderToz(){
   if(!ZRANGE) return;
@@ -833,6 +871,22 @@ function setTab(t){
   if(t==="mon") drawMonZones(false); else if(mfyLayer) mfyLayer.clearLayers();
 }
 document.querySelectorAll("nav button").forEach(b=>b.onclick=()=>setTab(b.dataset.t));
+
+// Geozonalar bo'yicha tuzatishlar ro'yxati: qaysi geozona qaysi MFYga tegishli, yangi va eski raqami
+$("gxls").onclick = () => {
+  if(typeof XLSX==="undefined"||!Object.keys(CLEAN).length) return;
+  const rows=[["MFY (haqiqiy joyi)","Yangi №","Wialondagi guruhi","Wialondagi №","Holat"]];
+  mfyList().forEach(g=>{ (CLEAN[g.id]||[]).slice().sort((a,b)=>NEWNO[a]-NEWNO[b]).forEach(i=>{ const z=ZD[i], mv=MOVED[i];
+    const from=mv?zoneGroups[mv.from]:g; const dupe=(AUD[from.id]&&AUD[from.id].dup||[]).includes(i);
+    const st=[mv?"Boshqa MFY guruhida turibdi – shu MFYga o'tkazish kerak":"", dupe?"Wialonda nomi takrorlangan":"", !mv&&String(z.n)!==String(NEWNO[i])?"Raqami o'zgardi":""].filter(Boolean).join("; ")||"To'g'ri";
+    rows.push([cleanName(g.n),NEWNO[i],cleanName(from.n),String(z.n),st]); }); });
+  const ws=XLSX.utils.aoa_to_sheet(rows); ws["!cols"]=[{wch:28},{wch:8},{wch:28},{wch:12},{wch:55}];
+  const sum=[["MFY","Geozonalar soni","Boshqa guruhdan o'tkazilgan","Takror nomlar"]];
+  mfyList().forEach(g=>{ const ids=CLEAN[g.id]||[]; sum.push([cleanName(g.n),ids.length,ids.filter(i=>MOVED[i]).length,(AUD[g.id]&&AUD[g.id].dup||[]).length]); });
+  const ws2=XLSX.utils.aoa_to_sheet(sum); ws2["!cols"]=[{wch:28},{wch:16},{wch:26},{wch:14}];
+  const wb=XLSX.utils.book_new(); XLSX.utils.book_append_sheet(wb,ws2,"Umumiy"); XLSX.utils.book_append_sheet(wb,ws,"Geozonalar");
+  XLSX.writeFile(wb,"Geozona_tuzatishlari_Oltinkol.xlsx");
+};
 
 /* ================= Kalendar (Wialondagidek) =================
    Maydonni bosish -> kalendar ochiladi. Oy nomi -> oylar, yil -> yillar. Kun bosilsa tanlanadi va yopiladi.
