@@ -189,6 +189,7 @@ svg.parrw{display:block;filter:drop-shadow(0 0 1px rgba(0,0,0,.4))}
         <label class="fl">Gacha<input id="mdt" type="datetime-local"></label>
         <div class="quick" id="mq"><button data-q="today">Bugun</button><button data-q="yday">Kecha</button><button data-q="week">Shu hafta</button><button data-q="lweek">O'tgan hafta</button><button data-q="month">Shu oy</button></div>
         <button class="btn" id="mbtn">Geozonalardan o'tishni ko'rsatish</button>
+        <label style="display:flex;gap:6px;align-items:center;font-size:13px;cursor:pointer"><input type="checkbox" id="mvis"> Geozonalarni o'tilgan (yashil) / o'tilmagan (qizil) deb bo'yash</label>
         <div class="prog" style="flex:none"><i id="mbar"></i></div>
         <input id="q" placeholder="MFY qidirish">
       </div>
@@ -502,14 +503,15 @@ function drawMonZones(fit){
   zoneLayer.clearLayers(); ZLINES=[]; drawMfyAreas();
   const gs = mSel==="all" ? mfyList() : [zoneGroups[mSel]].filter(Boolean);
   const all=[], R=zoneCanvas(), single=mSel!=="all";
-  const V = MRANGE ? visAll() : null, showNo = single||map.getZoom()>=15;
+  const byVis = MRANGE && $("mvis").checked;
+  const V = byVis ? visAll() : null, showNo = single||map.getZoom()>=15;
   gs.forEach(g=>{ const ready = MRANGE && MRES[g.id];
     (CLEAN[g.id]||[]).forEach(i=>{ const z=ZD[i]; if(!z||!z.p) return; const ll=z.p.map(p=>[p.y,p.x]); all.push(...ll);
-      const ok=V&&V.has(i), wc = !MRANGE ? zoneColor(z) : !ready ? "#9aa5b4" : ok ? "#00c853" : "#ff1744";
+      const ok=MRANGE&&visAll().has(i), wc = !byVis ? zoneColor(z) : !ready ? "#9aa5b4" : ok ? "#00c853" : "#ff1744";
       let lay;
       if(z.t===3) lay=L.circle(ll[0],{renderer:R,radius:z.p[0].r||z.w||20,color:wc,weight:1,fillColor:wc,fillOpacity:.75});
       else if(z.t===2) lay=L.polygon(ll,{renderer:R,color:wc,weight:1,fillColor:wc,fillOpacity:.7});
-      else { lay=L.polyline(ll,{renderer:R,color:wc,weight:zoneW(z.w),opacity:MRANGE?.8:.75,lineCap:"round",lineJoin:"round"}); lay._zw=z.w; ZLINES.push(lay); }
+      else { lay=L.polyline(ll,{renderer:R,color:wc,weight:zoneW(z.w),opacity:byVis?.8:.75,lineCap:"round",lineJoin:"round"}); lay._zw=z.w; ZLINES.push(lay); }
       const mv=MOVED[i];
       lay.bindTooltip(`<b>${esc(cleanName(g.n))}</b> · № <b>${NEWNO[i]}</b>${String(z.n)!==String(NEWNO[i])||mv?` <span style="color:#888">(Wialonda: ${mv?esc(cleanName(zoneGroups[mv.from].n))+" ":""}№${esc(z.n)})</span>`:""}${MRANGE?"<br>"+(!ready?"hisoblanmoqda":ok?"<b style='color:#0a8f3c'>o'tilgan</b>":"<b style='color:#d50000'>O'TILMAGAN</b>"):""}`).addTo(zoneLayer);
       if(showNo){ const m=ll[Math.floor(ll.length/2)]; L.marker(m,{interactive:false,icon:L.divIcon({className:"zno",html:`<span class="${/^#ff(ff|c2)/i.test(wc)?"ny":"nw"}">${NEWNO[i]}</span>`,iconSize:[0,0]})}).addTo(zoneLayer); }
@@ -519,6 +521,8 @@ function drawMonZones(fit){
     ms.innerHTML = g ? `<b>${esc(cleanName(g.n))}</b>: ${CLEAN[g.id].length} ta geozona`+(p?` · o'tilgan <b style="color:#13633a">${p.n}</b>, o'tilmagan <b style="color:#9b2222">${p.tot-p.n}</b> · <b>${Math.round(p.f*100)}%</b>`:"") : ""; }
 }
 
+try{ $("mvis").checked = store.get("bte_vis")==="1"; }catch(e){}
+$("mvis").onchange = () => { store.set("bte_vis",$("mvis").checked?"1":"0"); drawMonZones(false); };
 /* ================= Treklar ================= */
 /* Vaqt yordamchilari (Toshkent) */
 const fmtS = t => { const d=tk(t); return `${pad(d.getUTCHours())}:${pad(d.getUTCMinutes())}:${pad(d.getUTCSeconds())}`; };
