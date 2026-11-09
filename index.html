@@ -130,6 +130,7 @@ td.p{font-weight:700;text-align:center;width:80px}
 .zno span{position:absolute;transform:translate(-50%,-50%);font-weight:800;font-size:11px;color:#fff;text-shadow:-1px -1px 0 #000,1px -1px 0 #000,-1px 1px 0 #000,1px 1px 0 #000}
 #map.far .tlab{font-size:9px}
 #map.nozno .zno{display:none}
+#map.noarr .parrw{display:none}
 .pic{background:#2f6fd8!important;border-radius:3px!important}
 #map.far .mfyname span{font-size:10px}
 .parr{font-size:13px;font-weight:900;line-height:14px;text-shadow:-1px -1px 0 #fff,1px -1px 0 #fff,-1px 1px 0 #fff,1px 1px 0 #fff}
@@ -341,6 +342,7 @@ function initMap(){
   (bases[store.get("bte_base")]||osm).addTo(map);
   map.on("baselayerchange",e=>store.set("bte_base",e.name));
   L.control.scale({imperial:false}).addTo(map);
+  map.createPane("trk"); map.getPane("trk").style.zIndex=450; window.__tc=L.canvas({pane:"trk",padding:.5});
   mfyLayer = L.layerGroup().addTo(map); zoneLayer = L.layerGroup().addTo(map);
   trackLayer = L.layerGroup().addTo(map); unitLayer = L.layerGroup().addTo(map);
   // Xarita burchagidagi qatlamlar: har birini alohida yoqish / o'chirish mumkin
@@ -350,7 +352,7 @@ function initMap(){
   const off=JSON.parse(store.get("bte_off")||"[]"); Object.entries(ov).forEach(([k,l])=>{ if(off.includes(k)) map.removeLayer(l); });
   const saveOff=()=>store.set("bte_off",JSON.stringify(Object.entries(ov).filter(([k,l])=>!map.hasLayer(l)).map(([k])=>k)));
   map.on("overlayadd overlayremove",saveOff);
-  const zcls=()=>{const el=document.getElementById("map"),z=map.getZoom();el.classList.toggle("far",z<13);el.classList.toggle("nozno",z<16);}; map.on("zoomend",()=>{zcls();rezone();}); zcls();
+  const zcls=()=>{const el=document.getElementById("map"),z=map.getZoom();el.classList.toggle("far",z<13);el.classList.toggle("nozno",z<16);el.classList.toggle("noarr",z<14);}; map.on("zoomend",()=>{zcls();rezone();}); zcls();
 }
 
 /* ================= Monitoring ================= */
@@ -426,17 +428,19 @@ async function monTracks(from,to){
   if(to-from>3*86400){ $("upd").insertAdjacentHTML("beforeend","<br><span style='color:#9b2222'>Treklar 3 kungacha bo'lgan davr uchun chiziladi.</span>"); return; }
   let list=units;
   if(mSel!=="all"){ const r=REJA.find(([t,ms])=>ms.some(m=>m[2]===mSel)); if(r) list=units.filter(u=>raqam(u.nm)===r[0]); }
-  let done=0;
+  let done=0; $("upd").insertAdjacentHTML("beforeend","<br><span id='trkst'>Treklar yuklanmoqda...</span>");
   for(const u of list){
     try{
       const r=await api("messages/load_interval",{itemId:u.id,timeFrom:from,timeTo:to,flags:1,flagsMask:65281,loadCount:100000});
       await api("messages/unload",{});
       const pts=(r.messages||[]).filter(m=>m.pos).map(m=>({ll:[m.pos.y,m.pos.x],t:m.t,s:m.pos.s}));
-      drawTrack(trackLayer,pts,{w:3,arrowKm:0.3});
+      if(pts.length) units.find(x=>x.id===u.id)._trk=1;
+      drawTrack(trackLayer,pts,{w:4,arrowKm:0.25});
       findStops(pts,5*60).forEach(st=>L.marker(st.ll,{icon:pIcon()}).bindPopup(`<b>${esc(raqam(u.nm))}</b> – to'xtash<br>Kelgan: ${fmtDT(st.a)}<br>Ketgan: ${fmtDT(st.b)}<br>Turgan vaqti: <b>${dur(st.b-st.a)}</b>`).addTo(trackLayer));
     }catch(e){}
-    done++; $("mbar").style.width=(100*done/list.length)+"%";
+    done++; $("mbar").style.width=(100*done/list.length)+"%"; const ts=$("trkst"); if(ts) ts.textContent=`Treklar: ${done} / ${list.length} mashina`;
   }
+  const ts=$("trkst"); if(ts) ts.textContent="Treklar chizildi (ko'k <20, yashil 20–40, sariq 40–60, qizil >60 km/soat)";
 }
 // Har bir MFYga o'z rangi (Wialondagidek), hudud markazida nomi
 const MFY_COLORS=["#f2e45c","#9b6fd6","#5cc98a","#f07b8a","#f4a35e","#5aa9e6","#c9e35a","#e07be0","#57d1c9","#f6c445","#8f9ff2","#e8735a","#7fd65c","#d68fb8","#4fbcd9","#c8a26a"];
@@ -447,7 +451,7 @@ function drawMfyAreas(){
   mfyList().forEach(g=>{ const a=AUD[g.id]; const b=a&&a.bnd&&ZD[a.bnd]; if(!b) return;
     const sel = single && g.id===mSel; if(single && !sel) return;
     const col=mfyColor(g.id);
-    L.polygon(b.p.map(p=>[p.y,p.x]),{color:sel?"#c0392b":col,weight:sel?3:1.5,fillColor:col,fillOpacity:sel?.35:.45,interactive:false}).addTo(mfyLayer);
+    L.polygon(b.p.map(p=>[p.y,p.x]),{color:sel?"#c0392b":col,weight:sel?3:1.5,fillColor:col,fillOpacity:sel?.25:.35,interactive:false}).addTo(mfyLayer);
     const c=b.b?[b.b.cen_y,b.b.cen_x]:null; if(!c) return;
     L.marker(c,{interactive:false,icon:L.divIcon({className:"mfyname",html:`<span>${esc(cleanName(g.n))}</span>`,iconSize:[0,0]})}).addTo(mfyLayer);
   });
@@ -507,7 +511,7 @@ function quickRange(q){
 const spdCol = s => s>60?"#e60000":s>40?"#ff8c00":s>20?"#00a651":"#1f3cff";
 function drawTrack(layer,pts,opt={}){
   if(pts.length<2) return;
-  const R=zoneCanvas(), w=opt.w||4;
+  const R=window.__tc||zoneCanvas(), w=opt.w||4;
   let seg=[pts[0].ll]; const segs=[seg];
   for(let i=1;i<pts.length;i++){ if(hav(pts[i-1].ll,pts[i].ll)>3){ seg=[]; segs.push(seg);} seg.push(pts[i].ll); }
   segs.forEach(sg=>sg.length>1&&L.polyline(sg,{renderer:R,color:"#fff",weight:w+3,opacity:.9,interactive:false}).addTo(layer));
@@ -520,7 +524,7 @@ function drawTrack(layer,pts,opt={}){
   let acc=0; const step=opt.arrowKm||0.15;
   for(let i=1;i<pts.length;i++){ const d=hav(pts[i-1].ll,pts[i].ll); acc+=d; if(acc<step||d<0.005||d>3) continue; acc=0;
     const [y1,x1]=pts[i-1].ll,[y2,x2]=pts[i].ll; const ang=Math.atan2((x2-x1)*Math.cos(y1*Math.PI/180),y2-y1)*180/Math.PI;
-    L.marker(pts[i].ll,{interactive:false,icon:L.divIcon({className:"",iconSize:[14,14],iconAnchor:[7,7],html:`<div class="parr" style="color:${spdCol(pts[i].s)};transform:rotate(${ang-90}deg)">➤</div>`})}).addTo(layer); }
+    L.marker(pts[i].ll,{interactive:false,icon:L.divIcon({className:"",iconSize:[14,14],iconAnchor:[7,7],html:`<div class="parr parrw" style="color:${spdCol(pts[i].s)};transform:rotate(${ang-90}deg)">➤</div>`})}).addTo(layer); }
 }
 function findStops(pts,minS){
   const stops=[];
@@ -627,6 +631,7 @@ async function loadGroups(){
       $("gsum").textContent=`Geozonalar tekshirilmoqda... ${Math.min(i+500,ids.length)} / ${ids.length}`;
     }
     audit(); drawGroups(); drawMfyList(); drawMonZones(false);
+    if(!MRANGE) calcMon();
   }catch(e){ $("gsum").textContent="Geozonalarni yuklab bo'lmadi: "+e.message; }
 }
 function audit(){
