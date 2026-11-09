@@ -815,7 +815,7 @@ function pct(g,days){ const R=ZRES[g]; if(!R||R.err||!CLEAN[g]) return null; con
   const all=new Set(); days.forEach(d=>Object.values(ZRES).forEach(X=>X&&!X.err&&X[d]&&X[d].forEach(i=>all.add(i))));
   const s=new Set(ids.filter(i=>all.has(i))); return {f:s.size/tot,n:s.size,tot,set:s}; }
 /* Foiz ranglari: 0% oq | 0,1–59,9 qizil | 60–89,9 sariq | 90–94,9 och yashil | 95–100 to'q yashil */
-function pctP(f){return Math.round(f*1000)/10}
+function pctP(f){return Math.floor(Math.round(f*1000)/10+1e-9)}  /* ekranda ko'rinadigan butun foiz: 0% doim oq */
 function pcat(p){return p>=95?"pg":p>=90?"pl":p>=60?"py":p>0?"pr":"p0"}
 const cls = f => f==null?"":pcat(pctP(f));
 function renderToz(){
@@ -832,13 +832,13 @@ function renderToz(){
     <div class="kpi"><span>90–94,9%</span><b style="color:#5f9e2a">${tot.filter(x=>{const p=pctP(x.f);return p>=90&&p<95}).length}</b></div>
     <div class="kpi"><span>60–89,9%</span><b style="color:#c08f00">${tot.filter(x=>{const p=pctP(x.f);return p>=60&&p<90}).length}</b></div>
     <div class="kpi"><span>0–59,9%</span><b style="color:#ff0000">${tot.filter(x=>pctP(x.f)<60).length}</b></div>`;
-  let h=`<thead><tr><th>Texnika</th><th>MFY</th><th>Kunlari</th>${P.map(p=>`<th class="c">${esc(p.lab)}${p.sub?"<br>"+p.sub:""}</th>`).join("")}<th class="c">Butun davr</th></tr></thead><tbody>`;
+  let h=`<thead><tr><th class="c">№</th><th>Texnika</th><th>MFY</th><th>Kunlari</th>${P.map(p=>`<th class="c">${esc(p.lab)}${p.sub?"<br>"+p.sub:""}</th>`).join("")}<th class="c">Butun davr</th></tr></thead><tbody>`;
   // Har bir mashina o'z MFYlari bilan bitta blok: tepada va pastda qalin chiziq, mashina raqami birlashtirilgan katakda
   const cnt={}; rows.forEach(r=>cnt[r.t]=(cnt[r.t]||0)+1);
   let last=null, gi=0;
   rows.forEach((r,i)=>{ const first=r.t!==last; if(first) gi++; last=r.t; const ok=r.g!=null&&zoneGroups[r.g]; const plan=kunlar(r.k);
     const lastRow = i===rows.length-1 || rows[i+1].t!==r.t;
-    h+=`<tr class="${first?"gs":""} ${lastRow?"ge":""} ${gi%2?"godd":""}">${first?`<td class="tx" rowspan="${cnt[r.t]}"><b>${esc(r.t)}</b><br><span>${cnt[r.t]} ta MFY</span></td>`:""}<td class="${ok?"mf":""}" ${ok?`onclick="toMap(${r.g},true)"`:""}>${esc(r.n)}</td><td>${esc(r.k||"—")}</td>`;
+    h+=`<tr class="${first?"gs":""} ${lastRow?"ge":""} ${gi%2?"godd":""}">${first?`<td class="tx" rowspan="${cnt[r.t]}" style="min-width:32px"><b>${gi}</b></td><td class="tx" rowspan="${cnt[r.t]}"><b>${esc(r.t)}</b><br><span>${cnt[r.t]} ta MFY</span></td>`:""}<td class="${ok?"mf":""}" ${ok?`onclick="toMap(${r.g},true)"`:""}>${esc(r.n)}</td><td>${esc(r.k||"—")}</td>`;
     P.forEach(p=>{ const x=ok?pct(r.g,p.days):null; const pl=p.dow!=null&&plan.has(p.dow)?" plan":"";
       h+=`<td class="c ${cls(x&&x.f)}${pl}" title="${x?x.n+" / "+x.tot+" geozona":""}">${x?Math.floor(pctP(x.f)+1e-9)+"%":(ok&&ZRES[r.g]?"—":"")}</td>`; });
     const all=ok?pct(r.g,allDays):null;
