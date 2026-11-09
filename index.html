@@ -41,6 +41,29 @@ nav svg{width:16px;height:16px;fill:currentColor}
 .user button{background:none;border:1px solid #5b6d7f;color:#fff;margin-left:8px;border-radius:6px;padding:3px 8px}
 .bad{display:inline-block;font-size:11px;padding:1px 6px;border-radius:10px;margin:2px 2px 0 0}
 .b-red{background:#fadcdc;color:#9b2222}.b-yel{background:#fdf0c9;color:#7a5800}.b-ok{background:#d8f0e2;color:#13633a}
+.dp{display:flex;align-items:center;gap:8px;padding:7px 10px;border:1px solid var(--line);border-radius:8px;background:#fff;color:var(--txt);cursor:pointer;min-width:150px;font-size:14px;user-select:none}
+.dp:hover{border-color:var(--g)}
+.dp svg{width:16px;height:16px;fill:var(--mut);flex:none;margin-left:auto}
+#cal{position:fixed;z-index:5000;background:#fff;border:1px solid #c9d2db;border-radius:10px;box-shadow:0 10px 30px rgba(0,0,0,.2);width:268px;padding:10px;font-size:13px;color:var(--txt)}
+#cal .ch{display:flex;align-items:center;gap:4px;margin-bottom:8px}
+#cal .ch button{background:none;border:0;border-radius:6px;padding:5px 8px;font-weight:700;color:var(--txt)}
+#cal .ch button:hover{background:var(--g2);color:var(--g)}
+#cal .ch .ar{font-size:16px;padding:2px 9px}
+#cal .ch .sp{flex:1}
+#cal .gd{display:grid;gap:2px}
+#cal .gd.d{grid-template-columns:repeat(7,1fr)}
+#cal .gd.m{grid-template-columns:repeat(3,1fr);gap:6px}
+#cal .wd{text-align:center;color:var(--mut);font-size:11px;font-weight:600;padding:3px 0}
+#cal .c{background:none;border:0;border-radius:6px;padding:7px 0;text-align:center;color:var(--txt)}
+#cal .gd.m .c{padding:12px 0}
+#cal .c:hover{background:var(--g2);color:var(--g)}
+#cal .c.o{color:#b7c0ca}
+#cal .c.t{box-shadow:inset 0 0 0 1px var(--g);font-weight:700}
+#cal .c.s{background:var(--g);color:#fff;font-weight:700}
+#cal .c.we{color:#c0392b}
+#cal .cf{display:flex;align-items:center;gap:6px;border-top:1px solid var(--line);margin-top:8px;padding-top:8px}
+#cal .cf input{width:46px;padding:4px;border:1px solid var(--line);border-radius:6px;text-align:center;font:inherit}
+#cal .cf .tb{margin-left:auto;background:none;border:1px solid var(--g);color:var(--g);border-radius:6px;padding:4px 8px;font-weight:600}
 .fl{display:flex;flex-direction:column;font-size:12px;color:var(--mut);gap:3px}
 .fl.in{flex-direction:row;align-items:center;gap:6px}
 .fl input{padding:7px 9px;border:1px solid var(--line);border-radius:8px;font:inherit;color:var(--txt);background:#fff}
@@ -755,6 +778,78 @@ function setTab(t){
   if(t==="mon") drawMonZones(false); else if(mfyLayer) mfyLayer.clearLayers();
 }
 document.querySelectorAll("nav button").forEach(b=>b.onclick=()=>setTab(b.dataset.t));
+
+/* ================= Kalendar (Wialondagidek) =================
+   Maydonni bosish -> kalendar ochiladi. Oy nomi -> oylar, yil -> yillar. Kun bosilsa tanlanadi va yopiladi.
+   Vaqtli maydonlarda pastda soat:daqiqa ham bor. Qiymat avvalgidek "YYYY-MM-DD" yoki "YYYY-MM-DDTHH:MM" ko'rinishida saqlanadi. */
+const OYLAR=["Yanvar","Fevral","Mart","Aprel","May","Iyun","Iyul","Avgust","Sentyabr","Oktyabr","Noyabr","Dekabr"];
+const VD=Object.getOwnPropertyDescriptor(HTMLInputElement.prototype,"value");
+let calEl=null, calOpen=null;
+function attachPicker(el, withTime){
+  const real=el; real.type="hidden";
+  const box=document.createElement("div"); box.className="dp"; box.tabIndex=0;
+  box.innerHTML=`<span></span><svg viewBox="0 0 24 24"><path d="M7 2v2H5a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6a2 2 0 0 0-2-2h-2V2h-2v2H9V2zm-2 8h14v10H5z"/></svg>`;
+  real.after(box);
+  const show=()=>{ const v=VD.get.call(real); if(!v){ box.firstChild.textContent="Tanlang"; return; }
+    const [d,t]=v.split("T"); const [y,m,dd]=d.split("-"); box.firstChild.textContent=`${dd}.${m}.${y}`+(withTime?` ${t||"00:00"}`:""); };
+  Object.defineProperty(real,"value",{get(){return VD.get.call(real)},set(v){VD.set.call(real,v);show();},configurable:true});
+  real._wt=withTime; real._show=show; show();
+  const open=e=>{ e.stopPropagation(); if(calOpen===real){ closeCal(); return; } openCal(real,box); };
+  box.onclick=open; box.onkeydown=e=>{ if(e.key==="Enter"||e.key===" "){ e.preventDefault(); open(e);} };
+}
+function closeCal(){ if(calEl){ calEl.remove(); calEl=null; } calOpen=null; }
+document.addEventListener("click",e=>{ if(calEl && !calEl.contains(e.target)) closeCal(); });
+document.addEventListener("keydown",e=>{ if(e.key==="Escape") closeCal(); });
+window.addEventListener("resize",closeCal);
+function openCal(real,box){
+  closeCal(); calOpen=real;
+  const v=real.value||toDL(NOW()); const [d,t]=v.split("T");
+  let [Y,M,D]=d.split("-").map(Number); let [hh,mm]=(t||"00:00").split(":").map(Number);
+  const st={y:Y,m:M-1,view:"d"};
+  calEl=document.createElement("div"); calEl.id="cal"; document.body.appendChild(calEl);
+  calEl.addEventListener("click",e=>e.stopPropagation());
+  const r=box.getBoundingClientRect();
+  const place=()=>{ const h=calEl.offsetHeight, w=calEl.offsetWidth; let top=r.bottom+4, left=r.left;
+    if(top+h>innerHeight-8) top=Math.max(8,r.top-h-4); if(left+w>innerWidth-8) left=innerWidth-w-8; calEl.style.top=top+"px"; calEl.style.left=Math.max(8,left)+"px"; };
+  const tn=tk(NOW()); const today=[tn.getUTCFullYear(),tn.getUTCMonth(),tn.getUTCDate()];
+  const pick=(y,m,dd)=>{ const time=real._wt?`T${pad(hh)}:${pad(mm)}`:""; real.value=`${y}-${pad(m+1)}-${pad(dd)}${time}`; real.dispatchEvent(new Event("change")); closeCal(); };
+  const render=()=>{
+    let h="";
+    if(st.view==="d"){
+      h+=`<div class="ch"><button class="ar" data-a="pm">‹</button><span class="sp"></span><button data-a="vm">${OYLAR[st.m]}</button><button data-a="vy">${st.y}</button><span class="sp"></span><button class="ar" data-a="nm">›</button></div>`;
+      h+=`<div class="gd d">`+["Du","Se","Ch","Pa","Ju","Sh","Ya"].map((w,i)=>`<div class="wd" ${i>4?'style="color:#c0392b"':""}>${w}</div>`).join("");
+      const first=new Date(Date.UTC(st.y,st.m,1)); const off=(first.getUTCDay()+6)%7; const start=Date.UTC(st.y,st.m,1-off);
+      for(let i=0;i<42;i++){ const dt=new Date(start+i*86400000); const y=dt.getUTCFullYear(), m=dt.getUTCMonth(), dd=dt.getUTCDate();
+        const cls=["c", m!==st.m?"o":"", (y===today[0]&&m===today[1]&&dd===today[2])?"t":"", (y===Y&&m===M-1&&dd===D)?"s":"", i%7>4&&m===st.m?"we":""].join(" ");
+        h+=`<button class="${cls}" data-d="${y}-${m}-${dd}">${dd}</button>`; }
+      h+=`</div>`;
+      h+=`<div class="cf">${real._wt?`Vaqt: <input id="calh" type="number" min="0" max="23" value="${pad(hh)}"> : <input id="calm" type="number" min="0" max="59" value="${pad(mm)}">`:""}<button class="tb" data-a="today">Bugun</button></div>`;
+    } else if(st.view==="m"){
+      h+=`<div class="ch"><button class="ar" data-a="py">‹</button><span class="sp"></span><button data-a="vy">${st.y}</button><span class="sp"></span><button class="ar" data-a="ny">›</button></div><div class="gd m">`;
+      OYLAR.forEach((o,i)=>h+=`<button class="c ${i===st.m&&st.y===Y?"s":""} ${i===today[1]&&st.y===today[0]?"t":""}" data-m="${i}">${o}</button>`); h+=`</div>`;
+    } else {
+      const b=st.y-(st.y%12); h+=`<div class="ch"><button class="ar" data-a="pd">‹</button><span class="sp"></span><b>${b} – ${b+11}</b><span class="sp"></span><button class="ar" data-a="nd">›</button></div><div class="gd m">`;
+      for(let y=b;y<b+12;y++) h+=`<button class="c ${y===Y?"s":""} ${y===today[0]?"t":""}" data-y="${y}">${y}</button>`; h+=`</div>`;
+    }
+    calEl.innerHTML=h; place();
+    const hi=calEl.querySelector("#calh"), mi=calEl.querySelector("#calm");
+    if(hi){ hi.oninput=()=>{hh=Math.min(23,Math.max(0,+hi.value||0))}; mi.oninput=()=>{mm=Math.min(59,Math.max(0,+mi.value||0))}; }
+  };
+  calEl.onclick=e=>{ e.stopPropagation(); const b=e.target.closest("button"); if(!b) return;
+    const a=b.dataset.a;
+    if(b.dataset.d){ const [y,m,dd]=b.dataset.d.split("-").map(Number); pick(y,m,dd); return; }
+    if(b.dataset.m!=null){ st.m=+b.dataset.m; st.view="d"; return render(); }
+    if(b.dataset.y!=null){ st.y=+b.dataset.y; st.view="m"; return render(); }
+    if(a==="pm"){ st.m--; if(st.m<0){st.m=11;st.y--;} }
+    else if(a==="nm"){ st.m++; if(st.m>11){st.m=0;st.y++;} }
+    else if(a==="vm") st.view="m"; else if(a==="vy") st.view="y";
+    else if(a==="py") st.y--; else if(a==="ny") st.y++;
+    else if(a==="pd") st.y-=12; else if(a==="nd") st.y+=12;
+    else if(a==="today"){ pick(today[0],today[1],today[2]); return; }
+    render(); };
+  render();
+}
+[["mdf",1],["mdt",1],["tdf",1],["tdt",1],["zf",0],["zt",0]].forEach(([id,t])=>attachPicker($(id),!!t));
 
 /* ================= Boshlash ================= */
 const saved = store.get("bte_token");
