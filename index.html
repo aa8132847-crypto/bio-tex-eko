@@ -40,7 +40,7 @@ nav svg{width:16px;height:16px;fill:currentColor}
 .user{color:#cfd8e0;font-size:13px;white-space:nowrap}
 .user button{background:none;border:1px solid #5b6d7f;color:#fff;margin-left:8px;border-radius:6px;padding:3px 8px}
 .bad{display:inline-block;font-size:11px;padding:1px 6px;border-radius:10px;margin:2px 2px 0 0}
-.b-red{background:#fadcdc;color:#9b2222}.b-yel{background:#fdf0c9;color:#7a5800}.b-ok{background:#d8f0e2;color:#13633a}
+.b-0{background:#fff;color:#1d2733;border:1px solid #e3e8ee}.b-red{background:#ff0000;color:#fff}.b-yel{background:#ffc000;color:#1d2733}.b-lg{background:#92d050;color:#1d2733}.b-ok{background:#00b050;color:#fff}
 .dp{display:flex;align-items:center;gap:8px;padding:7px 10px;border:1px solid var(--line);border-radius:8px;background:#fff;color:var(--txt);cursor:pointer;min-width:150px;font-size:14px;user-select:none}
 .dp:hover{border-color:var(--g)}
 .dp svg{width:16px;height:16px;fill:var(--mut);flex:none;margin-left:auto}
@@ -122,7 +122,7 @@ table{width:100%;border-collapse:collapse;background:#fff;border:1px solid var(-
 th,td{padding:8px 10px;border-bottom:1px solid #eef1f4;text-align:left;font-size:13px}
 th{background:#fafbfc;color:var(--mut);font-weight:600;position:sticky;top:0}
 td.p{font-weight:700;text-align:center;width:80px}
-.pg{background:#d8f0e2;color:#13633a}.py{background:#fdf0c9;color:#7a5800}.pr{background:#fadcdc;color:#9b2222}
+.p0{background:#fff;color:#1d2733}.pr{background:#ff0000;color:#fff}.py{background:#ffc000;color:#1d2733}.pl{background:#92d050;color:#1d2733}.pg{background:#00b050;color:#fff}
 .tbtn{background:none;border:1px solid var(--line);border-radius:6px;padding:3px 8px;font-size:12px}
 .truck{position:relative}
 .truck .tlab{position:absolute;left:50%;top:24px;transform:translateX(-50%);white-space:nowrap;color:#d0021b;font-weight:700;font-size:11px;text-shadow:-1px -1px 0 #fff,1px -1px 0 #fff,-1px 1px 0 #fff,1px 1px 0 #fff,0 0 3px #fff}
@@ -426,7 +426,7 @@ function mfyPct(g){ if(!MRANGE||!CLEAN[g.id]) return null; const ids=CLEAN[g.id]
 function drawMfyList(){
   const q=$("q").value.toLowerCase(), L2=mfyList();
   let allN=0, allT=0; L2.forEach(g=>{const p=mfyPct(g); const a=AUD[g.id]; allT+=CLEAN[g.id]?CLEAN[g.id].length:(a?a.pts:g.zns.length); if(p) allN+=p.n;});
-  const badge=p=>p?`<span class="bad ${p.f>=.9?"b-ok":p.f>=.6?"b-yel":"b-red"}" style="font-size:12px;font-weight:700">${Math.round(p.f*100)}%</span><br><span style="font-size:11px">${p.n}/${p.tot}</span>`:"";
+  const badge=p=>p?`<span class="bad ${({pg:"b-ok",pl:"b-lg",py:"b-yel",pr:"b-red",p0:"b-0"})[pcat(pctP(p.f))]}" style="font-size:12px;font-weight:700">${Math.floor(pctP(p.f)+1e-9)}%</span><br><span style="font-size:11px">${p.n}/${p.tot}</span>`:"";
   const planOf = gid => { const r=REJA.find(([t,ms])=>ms.some(m=>m[2]===gid)); return r?r[0]:""; };
   let h=`<div class="row ${mSel==="all"?"sel":""}" data-g="all"><div style="flex:1"><div class="nm">Barcha MFYlar</div><div class="sub">${L2.length} ta MFY · ${allT} ta geozona</div></div><div class="rt">${MRANGE?badge({f:allT?allN/allT:0,n:allN,tot:allT}):""}</div></div>`;
   h+=L2.filter(g=>cleanName(g.n).toLowerCase().includes(q)).map(g=>`<div class="row ${mSel==g.id?"sel":""}" data-g="${g.id}"><div style="flex:1"><div class="nm">${esc(cleanName(g.n))}</div><div class="sub">${esc(planOf(g.id))}</div></div><div class="rt">${badge(mfyPct(g))}</div></div>`).join("");
@@ -519,7 +519,7 @@ function drawMonZones(fit){
     }); });
   if(fit&&all.length) map.fitBounds(L.latLngBounds(all),{padding:[30,30]});
   const ms=$("mstat"); if(ms){ const g=mSel!=="all"&&zoneGroups[mSel]; const p=g&&mfyPct(g);
-    ms.innerHTML = g ? `<b>${esc(cleanName(g.n))}</b>: ${CLEAN[g.id].length} ta geozona`+(p?` · o'tilgan <b style="color:#13633a">${p.n}</b>, o'tilmagan <b style="color:#9b2222">${p.tot-p.n}</b> · <b>${Math.round(p.f*100)}%</b>`:"") : ""; }
+    ms.innerHTML = g ? `<b>${esc(cleanName(g.n))}</b>: ${CLEAN[g.id].length} ta geozona`+(p?` · o'tilgan <b style="color:#13633a">${p.n}</b>, o'tilmagan <b style="color:#9b2222">${p.tot-p.n}</b> · <b>${Math.floor(pctP(p.f)+1e-9)}%</b>`:"") : ""; }
 }
 
 try{ $("mvis").checked = store.get("bte_vis")==="1"; }catch(e){}
@@ -813,7 +813,10 @@ function periods(){
 function pct(g,days){ const R=ZRES[g]; if(!R||R.err||!CLEAN[g]) return null; const ids=CLEAN[g], tot=ids.length; if(!tot) return null;
   const all=new Set(); days.forEach(d=>Object.values(ZRES).forEach(X=>X&&!X.err&&X[d]&&X[d].forEach(i=>all.add(i))));
   const s=new Set(ids.filter(i=>all.has(i))); return {f:s.size/tot,n:s.size,tot,set:s}; }
-const cls = f => f==null?"":f>=.9?"pg":f>=.6?"py":"pr";
+/* Foiz ranglari: 0% oq | 0,1–59,9 qizil | 60–89,9 sariq | 90–94,9 och yashil | 95–100 to'q yashil */
+function pctP(f){return Math.round(f*1000)/10}
+function pcat(p){return p>=95?"pg":p>=90?"pl":p>=60?"py":p>0?"pr":"p0"}
+const cls = f => f==null?"":pcat(pctP(f));
 function renderToz(){
   if(!ZRANGE) return;
   let P=periods(); let note="";
@@ -824,9 +827,10 @@ function renderToz(){
   const avg=tot.length?tot.reduce((s,x)=>s+x.f,0)/tot.length:0;
   $("kpis").innerHTML=`
     <div class="kpi"><span>O'rtacha tozalik (butun davr)</span><b>${Math.round(avg*100)}%</b></div>
-    <div class="kpi"><span>90% va yuqori</span><b style="color:#13633a">${tot.filter(x=>x.f>=.9).length}</b></div>
-    <div class="kpi"><span>60–89%</span><b style="color:#7a5800">${tot.filter(x=>x.f>=.6&&x.f<.9).length}</b></div>
-    <div class="kpi"><span>60% dan past</span><b style="color:#9b2222">${tot.filter(x=>x.f<.6).length}</b></div>`;
+    <div class="kpi"><span>95–100%</span><b style="color:#00b050">${tot.filter(x=>pctP(x.f)>=95).length}</b></div>
+    <div class="kpi"><span>90–94,9%</span><b style="color:#5f9e2a">${tot.filter(x=>{const p=pctP(x.f);return p>=90&&p<95}).length}</b></div>
+    <div class="kpi"><span>60–89,9%</span><b style="color:#c08f00">${tot.filter(x=>{const p=pctP(x.f);return p>=60&&p<90}).length}</b></div>
+    <div class="kpi"><span>0–59,9%</span><b style="color:#ff0000">${tot.filter(x=>pctP(x.f)<60).length}</b></div>`;
   let h=`<thead><tr><th>Texnika</th><th>MFY</th><th>Kunlari</th>${P.map(p=>`<th class="c">${esc(p.lab)}${p.sub?"<br>"+p.sub:""}</th>`).join("")}<th class="c">Butun davr</th></tr></thead><tbody>`;
   // Har bir mashina o'z MFYlari bilan bitta blok: tepada va pastda qalin chiziq, mashina raqami birlashtirilgan katakda
   const cnt={}; rows.forEach(r=>cnt[r.t]=(cnt[r.t]||0)+1);
@@ -835,9 +839,9 @@ function renderToz(){
     const lastRow = i===rows.length-1 || rows[i+1].t!==r.t;
     h+=`<tr class="${first?"gs":""} ${lastRow?"ge":""} ${gi%2?"godd":""}">${first?`<td class="tx" rowspan="${cnt[r.t]}"><b>${esc(r.t)}</b><br><span>${cnt[r.t]} ta MFY</span></td>`:""}<td class="${ok?"mf":""}" ${ok?`onclick="toMap(${r.g},true)"`:""}>${esc(r.n)}</td><td>${esc(r.k||"—")}</td>`;
     P.forEach(p=>{ const x=ok?pct(r.g,p.days):null; const pl=p.dow!=null&&plan.has(p.dow)?" plan":"";
-      h+=`<td class="c ${cls(x&&x.f)}${pl}" title="${x?x.n+" / "+x.tot+" geozona":""}">${x?Math.round(x.f*100)+"%":(ok&&ZRES[r.g]?"—":"")}</td>`; });
+      h+=`<td class="c ${cls(x&&x.f)}${pl}" title="${x?x.n+" / "+x.tot+" geozona":""}">${x?Math.floor(pctP(x.f)+1e-9)+"%":(ok&&ZRES[r.g]?"—":"")}</td>`; });
     const all=ok?pct(r.g,allDays):null;
-    h+=`<td class="c ${cls(all&&all.f)}" title="${all?all.n+" / "+all.tot+" geozona":""}">${all?Math.round(all.f*100)+"%":(r.g==null?"guruh yo'q":"")}</td></tr>`; });
+    h+=`<td class="c ${cls(all&&all.f)}" title="${all?all.n+" / "+all.tot+" geozona":""}">${all?Math.floor(pctP(all.f)+1e-9)+"%":(r.g==null?"guruh yo'q":"")}</td></tr>`; });
   $("ztable").innerHTML=h+"</tbody>";
   $("znote").innerHTML=note;
 }
