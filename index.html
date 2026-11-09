@@ -131,6 +131,7 @@ td.p{font-weight:700;text-align:center;width:80px}
 #map.far .tlab{font-size:9px}
 #map.nozno .zno{display:none}
 #map.noarr .parrw{display:none}
+.leaflet-trk-pane canvas{pointer-events:none!important}
 .pic{background:#2f6fd8!important;border-radius:3px!important}
 #map.far .mfyname span{font-size:10px}
 .parr{font-size:13px;font-weight:900;line-height:14px;text-shadow:-1px -1px 0 #fff,1px -1px 0 #fff,-1px 1px 0 #fff,1px 1px 0 #fff}
@@ -343,7 +344,7 @@ function initMap(){
   (bases[store.get("bte_base")]||osm).addTo(map);
   map.on("baselayerchange",e=>store.set("bte_base",e.name));
   L.control.scale({imperial:false}).addTo(map);
-  map.createPane("trk"); map.getPane("trk").style.zIndex=450; window.__tc=L.canvas({pane:"trk",padding:.5});
+  map.createPane("trk"); map.getPane("trk").style.zIndex=450; window.__tc=L.canvas({pane:"trk",padding:.5}); window.__ts=L.svg({pane:"trk",padding:.5});
   mfyLayer = L.layerGroup().addTo(map); zoneLayer = L.layerGroup().addTo(map);
   trackLayer = L.layerGroup().addTo(map); unitLayer = L.layerGroup().addTo(map);
   // Xarita burchagidagi qatlamlar: har birini alohida yoqish / o'chirish mumkin
@@ -561,7 +562,7 @@ function drawTrack(layer,pts,opt={}){
     L.marker(pts[i].ll,{interactive:false,icon:L.divIcon({className:"",iconSize:[14,14],iconAnchor:[7,7],html:`<div class="parr parrw" style="color:${spdCol(pts[i].s)};transform:rotate(${ang-90}deg)">➤</div>`})}).addTo(layer); }
 }
 function trackHover(layer,pts,name){
-  const R=window.__tc; const ln=L.polyline(pts.map(p=>p.ll),{renderer:R,opacity:0,weight:16,interactive:true}).addTo(layer);
+  const ln=L.polyline(pts.map(p=>p.ll),{renderer:window.__ts,color:"#000",opacity:0,weight:18,interactive:true}).addTo(layer);
   ln.bindTooltip("",{sticky:true,direction:"top",offset:[0,-8]});
   ln.on("mousemove",e=>{ let bi=0,bd=1e9; const P=e.latlng; for(let i=0;i<pts.length;i++){const d=(pts[i].ll[0]-P.lat)**2+(pts[i].ll[1]-P.lng)**2; if(d<bd){bd=d;bi=i}}
     ln.setTooltipContent(`${name?"<b>"+esc(name)+"</b><br>":""}Sana: <b>${fmtDT(pts[bi].t).slice(0,10)}</b> · Vaqt: <b>${fmtS(pts[bi].t)}</b><br>Tezlik: <b>${Math.round(pts[bi].s)} km/soat</b>`); });
